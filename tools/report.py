@@ -46,6 +46,17 @@ generated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 h = lambda s: html.escape(str(s))
 
+# ── Load analysis.json if present ────────────────────────────────────────────
+
+analysis_path = Path(__file__).parent.parent / "analysis.json"
+analysis = {}
+if analysis_path.exists():
+    try:
+        analysis = json.load(analysis_path.open(encoding="utf-8")).get("questions", {})
+        print(f"ℹ️  Loaded analysis.json ({len(analysis)} questions enriched)")
+    except Exception as e:
+        print(f"⚠️  Could not load analysis.json: {e}")
+
 # ── Detect filter-worthy variables ───────────────────────────────────────────
 # A var is "filterable" if it has a label map with ≤ 20 options (clearly categorical)
 
@@ -139,6 +150,7 @@ survey_data = {
     "filterLabels": {v: variables.get(v, v) for v in filter_vars},
     "filterOptions": filter_options,
     "respondents":  respondent_rows,
+    "analysis":     analysis,   # from analysis.json, empty dict if not present
 }
 
 data_json = json.dumps(survey_data, ensure_ascii=False, separators=(",", ":"))
@@ -213,6 +225,52 @@ tr:hover td { background: #f8f9ff; }
 .comment-search-count {
   font-size: 11px; color: #888; white-space: nowrap;
 }
+
+/* ── Analysis: summary, theme chips, sentiment filter ───────────────────── */
+.analysis-summary {
+  background: #f8f9ff; border-left: 3px solid #4361ee; padding: 10px 14px;
+  border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.6;
+  color: #444; margin-bottom: 14px;
+}
+.analysis-summary strong { color: #4361ee; font-size: 11px; display: block; margin-bottom: 4px; }
+.theme-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.chip {
+  font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
+  border: 1px solid #c8cef7; background: #fff; color: #4361ee;
+  transition: background .15s, color .15s;
+}
+.chip:hover   { background: #eef2ff; }
+.chip.active  { background: #4361ee; color: #fff; border-color: #4361ee; }
+.chip.chip-all { background: #f0f2ff; }
+.sentiment-bar { display: flex; gap: 4px; margin-bottom: 12px; align-items: center; }
+.sentiment-bar span { font-size: 11px; color: #888; margin-right: 4px; }
+.sent-btn {
+  font-size: 11px; padding: 3px 9px; border-radius: 10px; cursor: pointer;
+  border: 1px solid #ddd; background: #fff; color: #555;
+  transition: background .15s;
+}
+.sent-btn:hover  { background: #f5f5f5; }
+.sent-btn.active { border-color: #555; font-weight: 700; }
+.sent-1.active { background: #fde8e8; color: #c0392b; border-color: #c0392b; }
+.sent-2.active { background: #fff0e0; color: #c0672b; border-color: #c0672b; }
+.sent-3.active { background: #fffde8; color: #856404; border-color: #856404; }
+.sent-4.active { background: #e8f4e8; color: #2e7d32; border-color: #2e7d32; }
+.sent-5.active { background: #d4edda; color: #155724; border-color: #155724; }
+.comment-card .card-meta {
+  display: flex; gap: 6px; align-items: center; margin-bottom: 5px; flex-wrap: wrap;
+}
+.category-tag {
+  font-size: 10px; background: #eef2ff; color: #4361ee;
+  padding: 1px 7px; border-radius: 8px; font-weight: 600;
+}
+.sent-dot {
+  font-size: 10px; padding: 1px 7px; border-radius: 8px; font-weight: 600;
+}
+.sd-1 { background: #fde8e8; color: #c0392b; }
+.sd-2 { background: #fff0e0; color: #c0672b; }
+.sd-3 { background: #fffde8; color: #856404; }
+.sd-4 { background: #e8f4e8; color: #2e7d32; }
+.sd-5 { background: #d4edda; color: #155724; }
 .flag-high { color: #c0392b; font-weight: 600; }
 .flag-low  { color: #2980b9; font-weight: 600; }
 .type-tag  { font-size: 10px; background: #eef2ff; color: #4361ee; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
@@ -687,7 +745,7 @@ function renderOutliers(filtered, stats) {
 }
 
 function renderComments(filtered) {
-  // Group answers by question ID, preserving original question order
+  // Group answers (with analysis metadata if available) by question ID
   const byQid = {};
   filtered.forEach(r => {
     const t = r.t || {};
@@ -709,41 +767,99 @@ function renderComments(filtered) {
     container.innerHTML = '<p class="no-data">No comments in this selection.</p>';
     return;
   }
-
   heading.textContent = `Open-ended Responses`;
 
-  // Store answers globally for per-question search
-  window._qAnswers = {};
-  qids.forEach(q => { window._qAnswers[q] = byQid[q]; });
+  // Per-section filter state: {qid: {search, activeTheme, activeSent}}
+  const qState = {};
 
-  function cardsHtml(answers) {
-    if (!answers.length) return '<p class="no-data">No responses match your search.</p>';
-    return answers.map(txt => `<div class="comment-card">${esc(txt)}</div>`).join('');
+  // Build enriched answer list per question, merging analysis.json if available
+  function buildAnswers(qid) {
+    const rawTexts = byQid[qid] || [];
+    const aq = D.analysis && D.analysis[qid];
+    if (!aq || !aq.answers) return rawTexts.map(t => ({text: t}));
+    // Match by text (analysis was produced on full dataset; filter may reduce set)
+    const analysisMap = {};
+    aq.answers.forEach(a => { analysisMap[a.text] = a; });
+    return rawTexts.map(t => analysisMap[t] || {text: t});
   }
 
-  // Per-question search (debounced)
-  const timers = {};
+  // Render answer cards with optional category/sentiment badges
+  function cardsHtml(answers) {
+    if (!answers.length) return '<p class="no-data">No responses match your search.</p>';
+    return answers.map(a => {
+      let meta = '';
+      if (a.category) meta += `<span class="category-tag">${esc(a.category)}</span>`;
+      if (a.sentiment) {
+        const labels = {1:'😟 Very negative',2:'😕 Negative',3:'😐 Neutral',4:'🙂 Positive',5:'😄 Very positive'};
+        meta += `<span class="sent-dot sd-${a.sentiment}">${labels[a.sentiment]||a.sentiment}</span>`;
+      }
+      return `<div class="comment-card">
+        ${meta ? `<div class="card-meta">${meta}</div>` : ''}
+        ${esc(a.text)}
+      </div>`;
+    }).join('');
+  }
+
+  // Apply all active filters for a question and re-render its cards
+  window._qAllAnswers = {};
+  function applyQFilters(qid) {
+    const all  = window._qAllAnswers[qid] || [];
+    const st   = qState[qid] || {};
+    const q    = (st.search || '').toLowerCase();
+    const theme = st.activeTheme || null;
+    const sents = st.activeSents || new Set();
+    const matched = all.filter(a => {
+      if (q && !a.text.toLowerCase().includes(q)) return false;
+      if (theme && a.category !== theme) return false;
+      if (sents.size && !sents.has(a.sentiment)) return false;
+      return true;
+    });
+    const el = document.getElementById('qcards-' + qid);
+    const ct = document.getElementById('qcount-' + qid);
+    if (el) el.innerHTML = cardsHtml(matched);
+    const total = all.length;
+    if (ct) ct.textContent = matched.length < total
+      ? `${matched.length.toLocaleString()} of ${total.toLocaleString()} match`
+      : `${total.toLocaleString()} responses`;
+  }
+
   window.filterQComments = function(qid, query) {
-    clearTimeout(timers[qid]);
-    timers[qid] = setTimeout(() => {
-      const q = query.trim().toLowerCase();
-      const all = window._qAnswers[qid] || [];
-      const matched = q ? all.filter(t => t.toLowerCase().includes(q)) : all;
-      const el = document.getElementById('qcards-' + qid);
-      const ct = document.getElementById('qcount-' + qid);
-      if (el) el.innerHTML = cardsHtml(matched);
-      if (ct) ct.textContent = q
-        ? `${matched.length.toLocaleString()} of ${all.length.toLocaleString()} match`
-        : `${all.length.toLocaleString()} responses`;
-    }, 150);
+    if (!qState[qid]) qState[qid] = {};
+    qState[qid].search = query;
+    applyQFilters(qid);
   };
 
   window.clearQSearch = function(qid) {
     const inp = document.getElementById('qsearch-' + qid);
-    if (inp) { inp.value = ''; window.filterQComments(qid, ''); }
+    if (inp) inp.value = '';
+    if (qState[qid]) qState[qid].search = '';
+    applyQFilters(qid);
   };
 
-  // Toggle collapse/expand per section
+  window.setQTheme = function(qid, theme) {
+    if (!qState[qid]) qState[qid] = {};
+    qState[qid].activeTheme = (qState[qid].activeTheme === theme) ? null : theme;
+    // Update chip styles
+    const wrap = document.getElementById('qthemes-' + qid);
+    if (wrap) wrap.querySelectorAll('.chip').forEach(c => {
+      c.classList.toggle('active', c.dataset.theme === qState[qid].activeTheme);
+    });
+    applyQFilters(qid);
+  };
+
+  window.toggleQSent = function(qid, sent) {
+    if (!qState[qid]) qState[qid] = {};
+    if (!qState[qid].activeSents) qState[qid].activeSents = new Set();
+    const s = qState[qid].activeSents;
+    s.has(sent) ? s.delete(sent) : s.add(sent);
+    // Update button styles
+    const wrap = document.getElementById('qsents-' + qid);
+    if (wrap) wrap.querySelectorAll('.sent-btn').forEach(b => {
+      b.classList.toggle('active', s.has(Number(b.dataset.sent)));
+    });
+    applyQFilters(qid);
+  };
+
   window.toggleQSection = function(qid) {
     const body = document.getElementById('qbody-' + qid);
     const tog  = document.getElementById('qtog-' + qid);
@@ -753,9 +869,40 @@ function renderComments(filtered) {
     if (tog) tog.textContent = hidden ? '▲' : '▼';
   };
 
+  const SENT_LABELS = {1:'😟 1',2:'😕 2',3:'😐 3',4:'🙂 4',5:'😄 5'};
+
   const sections = qids.map(qid => {
     const label   = D.textVars[qid] || qid;
-    const answers = byQid[qid];
+    const answers = buildAnswers(qid);
+    window._qAllAnswers[qid] = answers;
+    qState[qid] = {search:'', activeTheme:null, activeSents:new Set()};
+
+    const aq = D.analysis && D.analysis[qid];
+
+    // Summary block
+    const summaryHtml = aq && aq.summary
+      ? `<div class="analysis-summary"><strong>✨ AI Summary</strong>${esc(aq.summary)}</div>`
+      : '';
+
+    // Theme chips
+    let themesHtml = '';
+    if (aq && aq.themes && aq.themes.length) {
+      const chips = aq.themes.map(t =>
+        `<button class="chip" data-theme="${esc(t)}" onclick="setQTheme('${qid}','${esc(t)}')">${esc(t)}</button>`
+      ).join('');
+      themesHtml = `<div class="theme-chips" id="qthemes-${qid}">${chips}</div>`;
+    }
+
+    // Sentiment filter
+    const sentHtml = aq && aq.answers && aq.answers.some(a => a.sentiment)
+      ? `<div class="sentiment-bar" id="qsents-${qid}">
+          <span>Sentiment:</span>
+          ${[1,2,3,4,5].map(s =>
+            `<button class="sent-btn sent-${s}" data-sent="${s}" onclick="toggleQSent('${qid}',${s})">${SENT_LABELS[s]}</button>`
+          ).join('')}
+        </div>`
+      : '';
+
     return `
       <div class="comment-section">
         <div class="comment-section-header" onclick="toggleQSection('${qid}')">
@@ -764,6 +911,9 @@ function renderComments(filtered) {
           <span class="comment-q-toggle" id="qtog-${qid}">▲</span>
         </div>
         <div class="comment-section-body" id="qbody-${qid}">
+          ${summaryHtml}
+          ${themesHtml}
+          ${sentHtml}
           <div class="comment-search-bar">
             <div class="comment-search-wrap">
               <span class="search-icon">🔍</span>
