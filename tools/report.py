@@ -223,6 +223,54 @@ footer { text-align:center; font-size:11px; color:#bbb; margin-top:40px; }
 }
 .no-data { color: #888; font-style: italic; padding: 16px 0; }
 
+/* ── Outlier cards ───────────────────────────────────────────────────────── */
+.outlier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px,1fr)); gap: 14px; }
+.outlier-card {
+  background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
+  overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05);
+}
+.outlier-header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: #f8f9ff; border-bottom: 1px solid #e8e8f0;
+}
+.outlier-id { font-size: 12px; font-weight: 600; color: #333; word-break: break-all; }
+.outlier-count {
+  font-size: 11px; font-weight: 700; background: #4361ee; color: #fff;
+  padding: 2px 9px; border-radius: 10px; white-space: nowrap; margin-left: 8px; flex-shrink: 0;
+}
+.outlier-flag {
+  display: grid; grid-template-columns: 26px 1fr auto; align-items: center;
+  gap: 8px; padding: 8px 14px; border-bottom: 1px solid #f4f4f4; font-size: 12px;
+}
+.outlier-flag:last-child { border-bottom: none; }
+.dir-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 13px;
+  font-weight: 700; flex-shrink: 0;
+}
+.dir-high { background: #fde8e8; color: #c0392b; }
+.dir-low  { background: #e8f0fd; color: #2361b8; }
+.flag-label { color: #333; line-height: 1.3; }
+.flag-label .var-code { font-size: 10px; color: #aaa; margin-left: 4px; font-family: monospace; }
+.flag-scores { text-align: right; white-space: nowrap; }
+.flag-their { font-weight: 700; font-size: 13px; }
+.flag-avg   { font-size: 10px; color: #888; margin-top: 1px; }
+.flag-bar-wrap { grid-column: 1 / -1; padding: 0 0 4px 34px; }
+.flag-bar-track {
+  height: 6px; background: #eee; border-radius: 3px; position: relative; overflow: visible;
+}
+.flag-bar-fill { height: 100%; border-radius: 3px; }
+.flag-bar-avg-marker {
+  position: absolute; top: -3px; width: 2px; height: 12px;
+  background: #555; border-radius: 1px; transform: translateX(-50%);
+}
+.z-pill {
+  display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px;
+  background: #f0f0f0; color: #555; cursor: help; margin-left: 4px;
+  border-bottom: 1px dashed #bbb;
+}
+.outlier-more { padding: 8px 14px; font-size: 11px; color: #888; font-style: italic; }
+
 @media print {
   .filter-bar { display: none !important; }
   body { background: #fff; }
@@ -498,8 +546,7 @@ function renderTopBottom(stats) {
 function renderOutliers(filtered, stats) {
   const Z_THRESH = 2.0;
   const outliers = [];
-  filtered.forEach(r => {
-    const email = r.f['email'] || '—';
+  filtered.forEach((r, ri) => {
     const flags = [];
     D.scoreVars.forEach((v, vi) => {
       const s = stats[v];
@@ -509,9 +556,13 @@ function renderOutliers(filtered, stats) {
       if (n===null) return;
       const z = Math.abs((n - s.mean) / s.sd);
       if (z >= Z_THRESH)
-        flags.push({v, norm:n, avg:s.mean, z, dir: n>s.mean?'↑':'↓'});
+        flags.push({v, label: D.varLabels[v]||v, norm:n, avg:s.mean, z, dir: n>s.mean?'↑':'↓'});
     });
-    if (flags.length) outliers.push({email, flags});
+    if (flags.length) {
+      // Sort flags by z-score descending so most extreme come first
+      flags.sort((a,b)=>b.z-a.z);
+      outliers.push({idx: ri+1, flags});
+    }
   });
 
   if (!outliers.length) {
@@ -519,19 +570,69 @@ function renderOutliers(filtered, stats) {
       `<p style="color:#888;font-style:italic">No significant outliers found (z-threshold: ${Z_THRESH}).</p>`;
     return;
   }
-  const rows = outliers.slice(0,50).map(o => {
-    const fp = o.flags.map(f => {
-      const cls = f.dir==='↑'?'flag-high':'flag-low';
-      return `<span class="${cls}">${esc(f.v)} ${f.dir} ${f.norm.toFixed(0)} (z=${f.z.toFixed(1)})</span>`;
-    }).join(' &nbsp; ');
-    return `<tr><td>${esc(o.email)}</td><td>${o.flags.length}</td><td>${fp}</td></tr>`;
+
+  const zTooltip = 'Z-score: how many standard deviations this answer is from the group average. ' +
+    'A value of 2 or more means the answer is unusually high or low compared to other respondents.';
+
+  const cards = outliers.slice(0,40).map(o => {
+    const countLabel = `${o.flags.length} unusual answer${o.flags.length>1?'s':''}`;
+
+    const flagRows = o.flags.slice(0,8).map(f => {
+      const isHigh  = f.dir === '↑';
+      const dirCls  = isHigh ? 'dir-high' : 'dir-low';
+      const dirSymbol = isHigh ? '▲' : '▼';
+      const dirLabel  = isHigh ? 'Above avg' : 'Below avg';
+      const their = f.norm.toFixed(0);
+      const avg   = f.avg.toFixed(0);
+      const diff  = Math.abs(f.norm - f.avg).toFixed(0);
+      const fillPct  = Math.min(f.norm, 100);
+      const avgPct   = Math.min(f.avg, 100);
+      const fillCol  = scoreColour(f.norm);
+      const shortLbl = f.label.length > 70 ? f.label.slice(0,70)+'…' : f.label;
+
+      return `
+        <div class="outlier-flag">
+          <span class="dir-badge ${dirCls}" title="${dirLabel}">${dirSymbol}</span>
+          <div class="flag-label">
+            ${esc(shortLbl)}
+            <span class="var-code">(${esc(f.v)})</span>
+          </div>
+          <div class="flag-scores">
+            <div class="flag-their" style="color:${scoreColour(f.norm)}">${their}<span style="font-size:10px;color:#aaa">/100</span></div>
+            <div class="flag-avg">avg ${avg} &nbsp; Δ${diff}</div>
+            <span class="z-pill" title="${esc(zTooltip)}">z = ${f.z.toFixed(1)}</span>
+          </div>
+        </div>
+        <div class="flag-bar-wrap">
+          <div class="flag-bar-track">
+            <div class="flag-bar-fill" style="width:${fillPct}%;background:${fillCol}"></div>
+            <div class="flag-bar-avg-marker" style="left:${avgPct}%" title="Group average: ${avg}"></div>
+          </div>
+        </div>`;
+    }).join('');
+
+    const moreFlags = o.flags.length > 8
+      ? `<div class="outlier-more">+ ${o.flags.length-8} more flagged questions</div>` : '';
+
+    return `<div class="outlier-card">
+      <div class="outlier-header">
+        <span class="outlier-id">👤 Respondent #${o.idx}</span>
+        <span class="outlier-count">${countLabel}</span>
+      </div>
+      ${flagRows}${moreFlags}
+    </div>`;
   });
-  document.getElementById('sec-outliers').innerHTML = `
-    <table>
-      <tr><th>Respondent</th><th># Flags</th><th>Flagged questions</th></tr>
-      ${rows.join('')}
-    </table>`;
-}
+
+  const more = outliers.length > 40
+    ? `<p style="color:#888;font-size:11px;margin-top:12px">… and ${outliers.length-40} more outlier respondents not shown</p>` : '';
+
+  document.getElementById('sec-outliers').innerHTML =
+    `<p style="font-size:11px;color:#888;margin-bottom:12px">
+      Respondents whose answers deviate significantly from the group (z ≥ ${Z_THRESH}).
+      The <strong>bar</strong> shows their score (coloured fill); the <strong>vertical line</strong> marks the group average.
+      <span class="z-pill" title="${esc(zTooltip)}" style="cursor:help">What is z-score? ℹ</span>
+    </p>
+    <div class="outlier-grid">${cards.join('')}</div>${more}`;
 
 function renderComments(filtered) {
   const comments = [];
