@@ -633,6 +633,7 @@ function renderOutliers(filtered, stats) {
       <span class="z-pill" title="${esc(zTooltip)}" style="cursor:help">What is z-score? ℹ</span>
     </p>
     <div class="outlier-grid">${cards.join('')}</div>${more}`;
+}
 
 function renderComments(filtered) {
   const comments = [];
