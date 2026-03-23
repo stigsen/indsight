@@ -173,6 +173,29 @@ tr:hover td { background: #f8f9ff; }
 .comment-card { background: #fff; border-left: 3px solid #4361ee; padding: 8px 12px;
                 margin-bottom: 8px; border-radius: 0 6px 6px 0; font-size: 12px; }
 .comment-meta { font-size: 10px; color: #888; margin-bottom: 4px; }
+
+/* ── Comment search bar ──────────────────────────────────────────────────── */
+.comment-search-bar {
+  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.comment-search-wrap {
+  display: flex; align-items: center; gap: 6px;
+  background: #f8f9ff; border: 1px solid #c8cef7; border-radius: 8px;
+  padding: 6px 12px; flex: 1; min-width: 220px;
+}
+.comment-search-wrap:focus-within {
+  border-color: #4361ee; box-shadow: 0 0 0 2px rgba(67,97,238,.15);
+}
+.search-icon { font-size: 13px; opacity: .6; }
+#comment-search-clear {
+  background: none; border: none; cursor: pointer; color: #999;
+  font-size: 14px; padding: 0 2px; line-height: 1;
+}
+#comment-search-clear:hover { color: #333; }
+.comment-search-count {
+  font-size: 11px; color: #888; white-space: nowrap;
+}
 .flag-high { color: #c0392b; font-weight: 600; }
 .flag-low  { color: #2980b9; font-weight: 600; }
 .type-tag  { font-size: 10px; background: #eef2ff; color: #4361ee; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
@@ -652,25 +675,59 @@ function renderComments(filtered) {
     const t = r.t || {};
     Object.entries(t).forEach(([tv, txt]) => {
       if (txt && txt.trim())
-        comments.push({question: D.textVars[tv]||tv, text: txt.trim()});
+        comments.push({question: D.textVars[tv]||tv, qid: tv, text: txt.trim(),
+                       search: (D.textVars[tv]||tv).toLowerCase() + ' ' + txt.trim().toLowerCase()});
     });
   });
+
+  const heading = document.getElementById('sec-comments-heading');
+  const container = document.getElementById('sec-comments');
+
   if (!comments.length) {
-    document.getElementById('sec-comments').innerHTML = '<p class="no-data">No comments in this selection.</p>';
-    document.getElementById('sec-comments-heading').textContent = 'Open-ended Responses (0 total)';
+    heading.textContent = 'Open-ended Responses (0 total)';
+    container.innerHTML = '<p class="no-data">No comments in this selection.</p>';
+    window._comments = [];
     return;
   }
-  document.getElementById('sec-comments-heading').textContent = `Open-ended Responses (${comments.length.toLocaleString()} total)`;
-  const cards = comments.slice(0,100).map(c =>
-    `<div class="comment-card">
+
+  heading.textContent = `Open-ended Responses (${comments.length.toLocaleString()} total)`;
+  window._comments = comments;
+
+  function buildCards(list) {
+    if (!list.length) return '<p class="no-data">No responses match your search.</p>';
+    return list.map(c => `<div class="comment-card">
       <div class="comment-meta">${esc(c.question)}</div>
       ${esc(c.text)}
-    </div>`
-  );
-  const more = comments.length>100
-    ? `<p style="color:#888;font-size:11px;margin-top:8px">... and ${(comments.length-100).toLocaleString()} more</p>`
-    : '';
-  document.getElementById('sec-comments').innerHTML = cards.join('') + more;
+    </div>`).join('');
+  }
+
+  let searchTimer = null;
+  window.doCommentSearch = function(query) {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      const q = query.trim().toLowerCase();
+      const matched = q ? comments.filter(c => c.search.includes(q)) : comments;
+      const countEl = document.getElementById('comment-search-count');
+      if (countEl) countEl.textContent = q
+        ? `${matched.length.toLocaleString()} of ${comments.length.toLocaleString()} match`
+        : `${comments.length.toLocaleString()} responses`;
+      document.getElementById('comment-cards').innerHTML = buildCards(matched);
+    }, 150);
+  };
+
+  container.innerHTML = `
+    <div class="comment-search-bar">
+      <div class="comment-search-wrap">
+        <span class="search-icon">🔍</span>
+        <input id="comment-search-input" type="text" placeholder="Search responses…"
+               oninput="doCommentSearch(this.value)"
+               style="flex:1;font-size:13px;border:none;outline:none;background:transparent;padding:4px 0"/>
+        <button id="comment-search-clear" onclick="document.getElementById('comment-search-input').value='';doCommentSearch('')"
+                title="Clear search">✕</button>
+      </div>
+      <span id="comment-search-count" class="comment-search-count">${comments.length.toLocaleString()} responses</span>
+    </div>
+    <div id="comment-cards">${buildCards(comments)}</div>`;
 }
 
 // ── Filter state ──────────────────────────────────────────────────────────────
