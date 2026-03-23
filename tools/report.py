@@ -545,10 +545,21 @@ function renderTopBottom(stats) {
 
 function renderOutliers(filtered, stats) {
   const Z_THRESH = 2.0;
+  // Only flag continuous scale variables — skip categorical/binary/filter vars
+  const filterVarSet = new Set(D.filterVars);
+  const outlierVars = D.scoreVars.filter((v, vi) =>
+    !filterVarSet.has(v) &&
+    D.varTypes[v] !== 'binary' &&
+    D.varTypes[v] !== 'text'
+  );
+  const outlierVarIdxMap = {};
+  outlierVars.forEach(v => { outlierVarIdxMap[v] = D.scoreVars.indexOf(v); });
+
   const outliers = [];
   filtered.forEach((r, ri) => {
     const flags = [];
-    D.scoreVars.forEach((v, vi) => {
+    outlierVars.forEach(v => {
+      const vi = outlierVarIdxMap[v];
       const s = stats[v];
       if (!s || s.mean===null || !s.sd || s.sd===0) return;
       const raw = r.s[vi];
