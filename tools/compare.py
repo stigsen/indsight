@@ -1,82 +1,52 @@
 #!/usr/bin/env python3
-"""
-Side-by-side comparison of two respondents.
+"""Side-by-side comparison of two respondents (scores normalised to 0–100)."""
 
-Shows each question with both scores and the difference (R2 − R1).
-Useful for understanding how two people's priorities differ.
-"""
-
-import argparse
-import sys
+import argparse, sys
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import load, is_score_var
+from _loader import load, normalize_score
 
-parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--email1", required=True, help="Email (or partial) of first respondent")
-parser.add_argument("--email2", required=True, help="Email (or partial) of second respondent")
-parser.add_argument("--dataset", help="Path to a specific XML dataset file")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--email1", required=True)
+parser.add_argument("--email2", required=True)
+parser.add_argument("--dataset")
 args = parser.parse_args()
 
 data = load(path=args.dataset, cwd=Path(__file__).parent.parent)
-variables = data["variables"]
-labels = data["labels"]
-respondents = data["respondents"]
+variables, labels, respondents = data["variables"], data["labels"], data["respondents"]
+var_meta, score_vars = data["var_meta"], data["score_vars"]
+text_vars = [v for v in variables if var_meta.get(v, {}).get("type") == "text"
+             and not v.startswith("statoverall")]
 
-def find_respondent(email_fragment):
-    q = email_fragment.lower()
-    matches = [r for r in respondents if (r.get("email") or "").lower().find(q) != -1]
-    if not matches:
-        sys.exit(f"Respondent not found: {email_fragment}")
-    if len(matches) > 1:
-        print(f"⚠️  Multiple matches for '{email_fragment}': {[r.get('email') for r in matches]}", file=sys.stderr)
-        print(f"   Using first match: {matches[0].get('email')}", file=sys.stderr)
-    return matches[0]
+def find(frag):
+    q = frag.lower()
+    m = [r for r in respondents if (r.get("email") or "").lower().find(q) != -1]
+    if not m: sys.exit(f"Respondent not found: {frag}")
+    if len(m) > 1: print(f"⚠️  Multiple matches, using {m[0].get('email')}", file=sys.stderr)
+    return m[0]
 
-r1 = find_respondent(args.email1)
-r2 = find_respondent(args.email2)
+r1, r2 = find(args.email1), find(args.email2)
 
-score_vars = [v for v in variables if is_score_var(v)]
-
-print(f"Comparing respondents")
-print(f"  R1: {r1.get('email')}")
-print(f"  R2: {r2.get('email')}")
-print()
-print(f"{'Var':<8} {'R1':>3} {'R2':>3} {'Δ':>4}   Description")
-print("─" * 70)
-
-diffs = []
+print(f"Comparing  R1: {r1.get('email')}  ↔  R2: {r2.get('email')}\n")
+print(f"{'Variable':<18} {'R1':>6} {'R2':>6} {'Δ':>6}   Description")
+print("─" * 72)
 for v in score_vars:
-    try:
-        s1 = int(r1.get(v) or "")
-    except (ValueError, TypeError):
-        s1 = None
-    try:
-        s2 = int(r2.get(v) or "")
-    except (ValueError, TypeError):
-        s2 = None
-
-    if s1 is None and s2 is None:
-        continue
-
-    delta = (s2 - s1) if (s1 is not None and s2 is not None) else None
-    delta_str = f"+{delta}" if delta is not None and delta > 0 else str(delta) if delta is not None else "?"
-    s1_str = str(s1) if s1 is not None else "-"
-    s2_str = str(s2) if s2 is not None else "-"
-    diffs.append(abs(delta) if delta is not None else 0)
-
-    # Highlight big differences
-    marker = " ◀" if (delta is not None and abs(delta) >= 2) else ""
-    print(f"{v:<8} {s1_str:>3} {s2_str:>3} {delta_str:>4}   {variables.get(v, v)}{marker}")
-
+    vtype = var_meta.get(v, {}).get("type", "other")
+    def norm(r):
+        raw = r.get(v)
+        if raw is None or raw == "": return None
+        try: return normalize_score(float(raw), vtype)
+        except: return None
+    n1, n2 = norm(r1), norm(r2)
+    if n1 is None and n2 is None: continue
+    d = round(n2 - n1) if n1 is not None and n2 is not None else None
+    d_str = (f"+{d}" if d and d > 0 else str(d)) if d is not None else "?"
+    marker = " ◀" if d is not None and abs(d) >= 15 else ""
+    s1 = f"{n1:.0f}" if n1 is not None else "—"
+    s2 = f"{n2:.0f}" if n2 is not None else "—"
+    print(f"{v:<18} {s1:>6} {s2:>6} {d_str:>6}   {variables.get(v, v)}{marker}")
 print()
-if diffs:
-    print(f"Average absolute difference: {sum(diffs)/len(diffs):.2f}")
-
-# Comments
-c1, c2 = r1.get("s_10"), r2.get("s_10")
-if c1:
-    print(f"\n💬 {r1.get('email')}: {c1}")
-if c2:
-    print(f"\n💬 {r2.get('email')}: {c2}")
+for tv in text_vars:
+    for r, label in [(r1, "R1"), (r2, "R2")]:
+        val = r.get(tv)
+        if val: print(f"💬 {label} [{variables.get(tv,tv)}]: {val}")

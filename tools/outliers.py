@@ -1,91 +1,64 @@
 #!/usr/bin/env python3
-"""
-Detect outlier respondents using z-scores.
+"""Detect outlier respondents using z-scores on normalised (0–100) scores."""
 
-Flags anyone whose score on a question deviates significantly from
-the group average. Also detects straight-liners (same score on all questions).
-"""
-
-import argparse
-import sys
+import argparse, sys
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import load, is_score_var, numeric_vals, stats
+from _loader import load, normalize_score
 
-parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--z", type=float, default=1.5, dest="z_threshold",
-                    help="Z-score threshold to flag a response as unusual (default: 1.5)")
-parser.add_argument("--variable", "-v", help="Focus on a single variable instead of all")
-parser.add_argument("--dataset", help="Path to a specific XML dataset file")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--z", type=float, default=1.5, dest="z_threshold")
+parser.add_argument("--variable", "-v")
+parser.add_argument("--dataset")
 args = parser.parse_args()
 
 data = load(path=args.dataset, cwd=Path(__file__).parent.parent)
-variables = data["variables"]
-respondents = data["respondents"]
+variables, respondents = data["variables"], data["respondents"]
+var_meta, score_vars = data["var_meta"], data["score_vars"]
 
-score_vars = ([args.variable] if args.variable else [v for v in variables if is_score_var(v)])
+if not score_vars:
+    print("ℹ️  No numeric score variables found in this dataset."); sys.exit(0)
+
+check_vars = [args.variable] if args.variable else score_vars
 if args.variable and args.variable not in variables:
     sys.exit(f"Unknown variable: {args.variable}")
 
-# Pre-compute per-variable stats
-var_stats = {}
-for v in score_vars:
-    vals = numeric_vals(respondents, v)
-    var_stats[v] = stats(vals)
-
-# Evaluate each respondent
-results = []
+outliers = []
 for r in respondents:
     email = r.get("email") or "(no email)"
-    flags = []
-    all_scores = []
-
-    for v in score_vars:
+    flags, all_norm = [], []
+    for v in check_vars:
+        raw = r.get(v)
+        if raw is None or raw == "": continue
+        m = var_meta.get(v, {})
+        vtype = m.get("type", "other")
+        if int(float(raw)) in m.get("na_values", set()): continue
         try:
-            score = int(r.get(v) or "")
-        except (ValueError, TypeError):
-            continue
-        if score == 6:
-            continue
-        all_scores.append(score)
-
-        s = var_stats[v]
-        if s["n"] >= 2 and s["sd"] and s["sd"] > 0:
-            z = abs((score - s["mean"]) / s["sd"])
+            norm = normalize_score(float(raw), vtype)
+        except: continue
+        if norm is None: continue
+        all_norm.append(norm)
+        mean_v, sd_v = m.get("mean"), m.get("sd")
+        if mean_v is not None and sd_v and sd_v > 0:
+            z = abs((norm - mean_v) / sd_v)
             if z >= args.z_threshold:
-                direction = "HIGH ↑" if score > s["mean"] else "LOW ↓"
-                flags.append({
-                    "v": v,
-                    "score": score,
-                    "z": round(z, 2),
-                    "direction": direction,
-                    "desc": variables.get(v, v),
-                    "group_mean": round(s["mean"], 2),
-                })
-
-    unique = set(all_scores)
-    is_straight = len(all_scores) >= 3 and len(unique) == 1
-
+                flags.append({"v": v, "raw": raw, "norm": norm, "z": z,
+                               "dir": "HIGH ↑" if norm > mean_v else "LOW ↓",
+                               "avg": mean_v, "desc": variables.get(v, v)})
+    unique = set(round(x) for x in all_norm)
+    is_straight = len(all_norm) >= 3 and len(unique) == 1
     if flags or is_straight:
-        results.append({"email": email, "flags": flags, "is_straight": is_straight, "all_scores": all_scores})
+        outliers.append({"email": email, "flags": flags, "is_straight": is_straight, "all_norm": all_norm})
 
-if not results:
-    print(f"✅ No outliers found at z-threshold={args.z_threshold}. All responses look normal.")
-    sys.exit(0)
+if not outliers:
+    print(f"✅ No outliers at z-threshold={args.z_threshold}."); sys.exit(0)
 
 print(f"🔍 Outlier Detection  (z-threshold: {args.z_threshold})")
-print("─" * 65)
-print()
-
-for o in results:
-    print(f"👤 {o['email']}")
+print("─" * 68)
+for o in outliers:
+    print(f"\n👤 {o['email']}")
     if o["is_straight"]:
-        score_val = o["all_scores"][0]
-        print(f"  ⚠️  Straight-liner — every score = {score_val}")
+        print(f"  ⚠️  Straight-liner — all scores ≈ {o['all_norm'][0]:.0f}/100")
     for f in o["flags"]:
-        print(
-            f"  ⚠️  {f['v']:<6}  score={f['score']}  z={f['z']}  {f['direction']}  "
-            f"(group avg {f['group_mean']})  {f['desc']}"
-        )
-    print()
+        print(f"  ⚠️  {f['v']:<18} raw={f['raw']}  norm={f['norm']:.0f}  z={f['z']:.2f}  "
+              f"{f['dir']}  (avg {f['avg']:.1f})  {f['desc']}")

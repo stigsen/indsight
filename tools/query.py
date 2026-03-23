@@ -1,36 +1,28 @@
 #!/usr/bin/env python3
-"""
-Query and inspect individual respondent responses.
+"""Query individual respondent data. Filter by email, variable, and/or score range."""
 
-Filter by email, variable name, and/or score range.
-Returns the full response profile for each matching respondent.
-"""
-
-import argparse
-import sys
+import argparse, sys
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import load, is_score_var
+from _loader import load, normalize_score
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--email", "-e", help="Filter by email address (partial match)")
-parser.add_argument("--variable", "-v", help="Filter on this variable (combine with --min / --max)")
-parser.add_argument("--min", type=int, dest="min_score", help="Minimum score (inclusive)")
-parser.add_argument("--max", type=int, dest="max_score", help="Maximum score (inclusive)")
-parser.add_argument("--no-comments", action="store_true", help="Suppress free-text comments")
-parser.add_argument("--dataset", help="Path to a specific XML dataset file")
+parser.add_argument("--email", "-e")
+parser.add_argument("--variable", "-v")
+parser.add_argument("--min", type=float, dest="min_score", help="Min normalised score (0-100)")
+parser.add_argument("--max", type=float, dest="max_score", help="Max normalised score (0-100)")
+parser.add_argument("--no-comments", action="store_true")
+parser.add_argument("--dataset")
 args = parser.parse_args()
 
 data = load(path=args.dataset, cwd=Path(__file__).parent.parent)
-variables = data["variables"]
-labels = data["labels"]
-headers = data["headers"]
-respondents = data["respondents"]
+variables, labels, headers = data["variables"], data["labels"], data["headers"]
+respondents, var_meta, score_vars = data["respondents"], data["var_meta"], data["score_vars"]
 
-# Apply filters
+text_vars = [v for v in variables if var_meta.get(v, {}).get("type") == "text"
+             and not v.startswith("statoverall")]
+
 filtered = respondents
-
 if args.email:
     q = args.email.lower()
     filtered = [r for r in filtered if (r.get("email") or "").lower().find(q) != -1]
@@ -38,36 +30,41 @@ if args.email:
 if args.variable:
     if args.variable not in variables:
         sys.exit(f"Unknown variable: {args.variable}")
-    def score_filter(r):
+    vtype = var_meta.get(args.variable, {}).get("type", "other")
+    def score_ok(r):
+        raw = r.get(args.variable)
+        if raw is None or raw == "": return False
         try:
-            v = int(r.get(args.variable) or "")
-        except (ValueError, TypeError):
-            return False
-        if args.min_score is not None and v < args.min_score:
-            return False
-        if args.max_score is not None and v > args.max_score:
-            return False
-        return True
-    filtered = [r for r in filtered if score_filter(r)]
+            n = normalize_score(float(raw), vtype)
+            if n is None: return False
+            if args.min_score is not None and n < args.min_score: return False
+            if args.max_score is not None and n > args.max_score: return False
+            return True
+        except (ValueError, TypeError): return False
+    filtered = [r for r in filtered if score_ok(r)]
 
 if not filtered:
-    print("No respondents match the filter.")
-    sys.exit(0)
+    print("No respondents match the filter."); sys.exit(0)
 
-score_vars = [h for h in headers if is_score_var(h)]
 show_comments = not args.no_comments
-
 print(f"{len(filtered)} respondent(s) found\n")
+
 for r in filtered:
     email = r.get("email") or "(no email)"
     print(f"👤 {email}")
     for v in score_vars:
-        score = r.get(v)
-        if score is None or score == "":
-            continue
-        lbl = labels.get(v, {}).get(score, "")
+        raw = r.get(v)
+        if raw is None or raw == "": continue
+        vtype = var_meta.get(v, {}).get("type", "other")
+        try:
+            n = normalize_score(float(raw), vtype)
+            norm_str = f"→ {n:.0f}/100" if n is not None else ""
+        except: norm_str = ""
+        lbl = labels.get(v, {}).get(str(raw), "")
         desc = variables.get(v, v)
-        print(f"  {v:<6}  {score}  {lbl:<28}  {desc}")
-    if show_comments and r.get("s_10"):
-        print(f"  💬 {r['s_10']}")
+        print(f"  {v:<18} {str(raw):<5} {norm_str:<10} {lbl:<28} {desc}")
+    if show_comments:
+        for tv in text_vars:
+            val = r.get(tv)
+            if val: print(f"  💬 [{variables.get(tv, tv)}] {val}")
     print()

@@ -1,53 +1,39 @@
 #!/usr/bin/env python3
-"""
-Rank all survey topics by average priority score.
+"""Rank survey topics by average score (normalised 0–100). Higher = more positive."""
 
-Shows the most- and least-wanted topics with a visual bar chart.
-Score 6 (N/A) is excluded. Higher score = higher priority.
-"""
-
-import argparse
-import sys
+import argparse, sys
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import load, is_score_var, numeric_vals, stats
+from _loader import load
 
-parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-parser.add_argument("--top", type=int, default=5, help="Number of top items to show (default: 5)")
-parser.add_argument("--bottom", type=int, default=5, help="Number of bottom items to show (default: 5)")
-parser.add_argument("--all", action="store_true", dest="show_all", help="Show all topics ranked")
-parser.add_argument("--dataset", help="Path to a specific XML dataset file")
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument("--top", type=int, default=5)
+parser.add_argument("--bottom", type=int, default=5)
+parser.add_argument("--all", action="store_true", dest="show_all")
+parser.add_argument("--dataset")
 args = parser.parse_args()
 
 data = load(path=args.dataset, cwd=Path(__file__).parent.parent)
-variables = data["variables"]
-respondents = data["respondents"]
+variables, var_meta, respondents = data["variables"], data["var_meta"], data["respondents"]
 
-ranked = []
-for v in variables:
-    if not is_score_var(v):
-        continue
-    vals = numeric_vals(respondents, v)
-    s = stats(vals)
-    if s["n"] == 0:
-        continue
-    ranked.append({"v": v, "desc": variables[v], "mean": s["mean"], "n": s["n"], "sd": s["sd"]})
+ranked = sorted(
+    [{"v": v, "desc": variables.get(v, v), **var_meta[v]}
+     for v in data["score_vars"] if var_meta[v].get("mean") is not None],
+    key=lambda r: -(r["mean"])
+)
+if not ranked:
+    print("ℹ️  No numeric score variables found."); sys.exit(0)
 
-ranked.sort(key=lambda r: -r["mean"])
-
-def render_list(items, title):
-    print(title)
-    print("─" * 65)
+def render(items, title):
+    print(title); print("─" * 65)
     for i, r in enumerate(items, 1):
-        bar = "█" * round(r["mean"] / 5 * 24)
-        print(f"{i:>2}. {bar:<24} {r['mean']:.2f} ±{r['sd']:.2f}  (n={r['n']})  {r['desc']}")
+        bar = "█" * round(r["mean"] / 100 * 28)
+        print(f"{i:>2}. {bar:<28} {r['mean']:.1f}±{r['sd']:.1f}  (n={r['n']})  {r['desc']}")
     print()
 
-print(f"🏆 Survey Priorities — {len(respondents)} respondents\n")
-
+print(f"📊 Survey Scores — {len(respondents)} respondents  (0–100 normalised)\n")
 if args.show_all:
-    render_list(ranked, f"All {len(ranked)} topics ranked")
+    render(ranked, f"All {len(ranked)} variables ranked")
 else:
-    render_list(ranked[:args.top], f"Top {args.top} — highest priority")
-    render_list(list(reversed(ranked[-args.bottom:])), f"Bottom {args.bottom} — lowest priority")
+    render(ranked[:args.top], f"Top {args.top} — highest scores")
+    render(list(reversed(ranked[-args.bottom:])), f"Bottom {args.bottom} — lowest scores")
