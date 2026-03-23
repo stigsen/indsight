@@ -171,12 +171,29 @@ th { background: #f0f2ff; text-align: left; padding: 7px 10px; font-weight: 600;
 td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
 tr:hover td { background: #f8f9ff; }
 .comment-card { background: #fff; border-left: 3px solid #4361ee; padding: 8px 12px;
-                margin-bottom: 8px; border-radius: 0 6px 6px 0; font-size: 12px; }
-.comment-meta { font-size: 10px; color: #888; margin-bottom: 4px; }
+                margin-bottom: 6px; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.5; }
+
+/* ── Comment sections (grouped by question) ─────────────────────────────── */
+.comment-section {
+  margin-bottom: 28px; border: 1px solid #e8e8f0; border-radius: 10px; overflow: hidden;
+}
+.comment-section-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  background: #f0f2ff; padding: 12px 16px; cursor: pointer; user-select: none;
+}
+.comment-section-header:hover { background: #e6e9fc; }
+.comment-q-title {
+  font-size: 13px; font-weight: 600; color: #1a1a2e; margin: 0; flex: 1;
+}
+.comment-q-count {
+  font-size: 11px; color: #4361ee; font-weight: 600; white-space: nowrap;
+}
+.comment-q-toggle { font-size: 12px; color: #4361ee; margin-left: 8px; }
+.comment-section-body { padding: 12px 16px; }
 
 /* ── Comment search bar ──────────────────────────────────────────────────── */
 .comment-search-bar {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
   flex-wrap: wrap;
 }
 .comment-search-wrap {
@@ -670,64 +687,99 @@ function renderOutliers(filtered, stats) {
 }
 
 function renderComments(filtered) {
-  const comments = [];
+  // Group answers by question ID, preserving original question order
+  const byQid = {};
   filtered.forEach(r => {
     const t = r.t || {};
     Object.entries(t).forEach(([tv, txt]) => {
-      if (txt && txt.trim())
-        comments.push({question: D.textVars[tv]||tv, qid: tv, text: txt.trim(),
-                       search: (D.textVars[tv]||tv).toLowerCase() + ' ' + txt.trim().toLowerCase()});
+      if (txt && txt.trim()) {
+        if (!byQid[tv]) byQid[tv] = [];
+        byQid[tv].push(txt.trim());
+      }
     });
   });
 
   const heading = document.getElementById('sec-comments-heading');
   const container = document.getElementById('sec-comments');
+  const qids = Object.keys(D.textVars).filter(q => byQid[q] && byQid[q].length > 0);
+  const totalCount = qids.reduce((s, q) => s + byQid[q].length, 0);
 
-  if (!comments.length) {
-    heading.textContent = 'Open-ended Responses (0 total)';
+  if (!totalCount) {
+    heading.textContent = 'Open-ended Responses';
     container.innerHTML = '<p class="no-data">No comments in this selection.</p>';
-    window._comments = [];
     return;
   }
 
-  heading.textContent = `Open-ended Responses (${comments.length.toLocaleString()} total)`;
-  window._comments = comments;
+  heading.textContent = `Open-ended Responses`;
 
-  function buildCards(list) {
-    if (!list.length) return '<p class="no-data">No responses match your search.</p>';
-    return list.map(c => `<div class="comment-card">
-      <div class="comment-meta">${esc(c.question)}</div>
-      ${esc(c.text)}
-    </div>`).join('');
+  // Store answers globally for per-question search
+  window._qAnswers = {};
+  qids.forEach(q => { window._qAnswers[q] = byQid[q]; });
+
+  function cardsHtml(answers) {
+    if (!answers.length) return '<p class="no-data">No responses match your search.</p>';
+    return answers.map(txt => `<div class="comment-card">${esc(txt)}</div>`).join('');
   }
 
-  let searchTimer = null;
-  window.doCommentSearch = function(query) {
-    clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => {
+  // Per-question search (debounced)
+  const timers = {};
+  window.filterQComments = function(qid, query) {
+    clearTimeout(timers[qid]);
+    timers[qid] = setTimeout(() => {
       const q = query.trim().toLowerCase();
-      const matched = q ? comments.filter(c => c.search.includes(q)) : comments;
-      const countEl = document.getElementById('comment-search-count');
-      if (countEl) countEl.textContent = q
-        ? `${matched.length.toLocaleString()} of ${comments.length.toLocaleString()} match`
-        : `${comments.length.toLocaleString()} responses`;
-      document.getElementById('comment-cards').innerHTML = buildCards(matched);
+      const all = window._qAnswers[qid] || [];
+      const matched = q ? all.filter(t => t.toLowerCase().includes(q)) : all;
+      const el = document.getElementById('qcards-' + qid);
+      const ct = document.getElementById('qcount-' + qid);
+      if (el) el.innerHTML = cardsHtml(matched);
+      if (ct) ct.textContent = q
+        ? `${matched.length.toLocaleString()} of ${all.length.toLocaleString()} match`
+        : `${all.length.toLocaleString()} responses`;
     }, 150);
   };
 
-  container.innerHTML = `
-    <div class="comment-search-bar">
-      <div class="comment-search-wrap">
-        <span class="search-icon">🔍</span>
-        <input id="comment-search-input" type="text" placeholder="Search responses…"
-               oninput="doCommentSearch(this.value)"
-               style="flex:1;font-size:13px;border:none;outline:none;background:transparent;padding:4px 0"/>
-        <button id="comment-search-clear" onclick="document.getElementById('comment-search-input').value='';doCommentSearch('')"
-                title="Clear search">✕</button>
-      </div>
-      <span id="comment-search-count" class="comment-search-count">${comments.length.toLocaleString()} responses</span>
-    </div>
-    <div id="comment-cards">${buildCards(comments)}</div>`;
+  window.clearQSearch = function(qid) {
+    const inp = document.getElementById('qsearch-' + qid);
+    if (inp) { inp.value = ''; window.filterQComments(qid, ''); }
+  };
+
+  // Toggle collapse/expand per section
+  window.toggleQSection = function(qid) {
+    const body = document.getElementById('qbody-' + qid);
+    const tog  = document.getElementById('qtog-' + qid);
+    if (!body) return;
+    const hidden = body.style.display === 'none';
+    body.style.display = hidden ? '' : 'none';
+    if (tog) tog.textContent = hidden ? '▲' : '▼';
+  };
+
+  const sections = qids.map(qid => {
+    const label   = D.textVars[qid] || qid;
+    const answers = byQid[qid];
+    return `
+      <div class="comment-section">
+        <div class="comment-section-header" onclick="toggleQSection('${qid}')">
+          <h3 class="comment-q-title">${esc(label)}</h3>
+          <span class="comment-q-count">${answers.length.toLocaleString()} responses</span>
+          <span class="comment-q-toggle" id="qtog-${qid}">▲</span>
+        </div>
+        <div class="comment-section-body" id="qbody-${qid}">
+          <div class="comment-search-bar">
+            <div class="comment-search-wrap">
+              <span class="search-icon">🔍</span>
+              <input id="qsearch-${qid}" type="text" placeholder="Search these responses…"
+                     oninput="filterQComments('${qid}', this.value)"
+                     style="flex:1;font-size:13px;border:none;outline:none;background:transparent;padding:4px 0"/>
+              <button onclick="clearQSearch('${qid}')" title="Clear">✕</button>
+            </div>
+            <span id="qcount-${qid}" class="comment-search-count">${answers.length.toLocaleString()} responses</span>
+          </div>
+          <div id="qcards-${qid}">${cardsHtml(answers)}</div>
+        </div>
+      </div>`;
+  });
+
+  container.innerHTML = sections.join('');
 }
 
 // ── Filter state ──────────────────────────────────────────────────────────────
