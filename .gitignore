@@ -1,3 +1,5 @@
 __pycache__/
-report.html
 *.swp
+
+# Dataset files and generated outputs — keep locally, never commit
+datasets/
