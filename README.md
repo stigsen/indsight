@@ -96,6 +96,8 @@ indsight/
 ├── scripts/              # Python scripts
 │   ├── report.py         # Main report generator
 │   ├── analyze_comments.py  # Dumps text answers for LLM analysis
+│   ├── anonymize.py      # Remove PII — writes <name>_anonymized.xlsx
+│   ├── list_datasets.py  # List available datasets
 │   ├── _loader.py        # Shared dataset loader
 │   ├── variables.py      # List variables with types and scores
 │   ├── summary.py        # Stats table (mean, median, SD)
@@ -111,11 +113,7 @@ indsight/
 
 ## Requirements
 
-```bash
-pip install openpyxl
-```
-
-Python 3.9+ · No other dependencies for report generation.
+Python 3.9+ · No additional packages required — uses only the standard library.
 
 ---
 

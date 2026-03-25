@@ -27,7 +27,22 @@ Examples of valid responses from the user:
 python3 scripts/list_datasets.py
 ```
 
-## Step 2 — Ask about AI summaries
+## Step 2 — Anonymize (optional but recommended)
+
+Before sharing data with the AI or generating reports, you may want to anonymize the dataset:
+
+> "Would you like to anonymize the dataset first? This removes emails, names, addresses, and other personal identifiers — both from dedicated PII columns and from inside free-text responses. The original file is never modified; a new `_anonymized.xlsx` file is created."
+
+```bash
+python3 scripts/anonymize.py --dataset datasets/myfile.xlsx
+# → creates datasets/myfile_anonymized.xlsx
+```
+
+If the user says yes, use `myfile_anonymized.xlsx` as the working dataset for all subsequent steps.
+
+⚠️ **Note:** The anonymizer catches structured PII (emails, phones, URLs) automatically. Names written naturally inside free-text answers (e.g. "Thanks to John Smith for…") are harder to detect reliably without AI — flag this to the user if the dataset appears to contain personal names in open-ended responses.
+
+## Step 3 — Ask about AI summaries
 
 Once the file is confirmed, always ask:
 
@@ -38,13 +53,13 @@ Once the file is confirmed, always ask:
 - **Yes** → Run `analyze_comments.py` to read all text answers, perform the full analysis described in [references/summary_prompt.md](references/summary_prompt.md), write `datasets/<name>_analysis.json`, then run `report.py`.
 - **No** → Run `report.py` directly. The report is still fully functional — just without AI-enriched comments.
 
-## Step 3 — Generate the report
+## Step 4 — Generate the report
 
 ```bash
-# Step 3a (if summaries requested): read all text data
+# Step 4a (if summaries requested): read all text data
 python3 scripts/analyze_comments.py --dataset datasets/myfile.xlsx
 
-# Step 3b: generate the HTML report (auto-loads <name>_analysis.json if present)
+# Step 4b: generate the HTML report (auto-loads <name>_analysis.json if present)
 python3 scripts/report.py --dataset datasets/myfile.xlsx --title "My Survey"
 ```
 
@@ -78,6 +93,7 @@ SurveyXact exports an Excel-XML or OOXML file with sheets:
 
 | Script | Purpose |
 |---|---|
+| `scripts/anonymize.py` | Remove PII (emails, names, phones, addresses) from a dataset |
 | `scripts/list_datasets.py` | List all available dataset files in datasets/ |
 | `scripts/report.py` | Full interactive HTML report with SVG charts + browser-side filters |
 | `scripts/analyze_comments.py` | Dump text answers for LLM analysis |
