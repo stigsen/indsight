@@ -56,18 +56,28 @@ Once the file is confirmed, always ask:
 ## Step 4 — Generate the report
 
 ```bash
-# Step 4a (if summaries requested): read all text data
+# Step 4a (if summaries requested): read all text data, then write analysis.json to output dir
 python3 scripts/analyze_comments.py --dataset datasets/myfile.xlsx
+# → LLM writes: /mnt/user-data/outputs/myfile_analysis.json
 
-# Step 4b: generate the HTML report (auto-loads <name>_analysis.json if present)
+# Step 4b: generate the HTML report
 python3 scripts/report.py --dataset datasets/myfile.xlsx --title "My Survey"
+# → auto-detects analysis.json in output dir; saves report to output dir
+
+# When running outside Claude (local), output goes alongside the dataset:
+# → datasets/myfile.html
+# → datasets/myfile_analysis.json
 ```
 
-Output files are placed alongside the dataset:
-- `datasets/myfile.html` — the interactive report
-- `datasets/myfile_analysis.json` — AI analysis (if generated)
+Output directory logic:
+- **Inside Claude** (`/mnt/user-data/outputs/` is available) → all output files go there
+- **Local / other environments** → output files are written alongside the dataset
 
-The report opens in any browser. Use **File → Print → Save as PDF** to export.
+You can always override with explicit flags:
+```bash
+python3 scripts/report.py   --dataset datasets/myfile.xlsx --out /custom/path/report.html --analysis /custom/path/myfile_analysis.json
+python3 scripts/anonymize.py --dataset datasets/myfile.xlsx --output /custom/path/myfile_anonymized.xlsx
+```
 
 ---
 

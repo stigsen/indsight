@@ -21,14 +21,15 @@ from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import load, normalize_score
+from _loader import load, get_output_dir, normalize_score
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--dataset", help="Path to dataset file (.xml or .xlsx)")
-parser.add_argument("--out", help="Output HTML file (default: report.html in project root)")
-parser.add_argument("--title", help="Custom report title")
+parser.add_argument("--out",      help="Output HTML file path (default: <output_dir>/<dataset>.html)")
+parser.add_argument("--analysis", help="Path to analysis.json (default: auto-detected)")
+parser.add_argument("--title",    help="Custom report title")
 parser.add_argument("--top", type=int, default=35, help="Max questions to include in ranking chart")
 args = parser.parse_args()
 
@@ -41,24 +42,37 @@ score_vars = data["score_vars"]
 path_str   = data["path"]
 
 dataset_path = Path(path_str)
-dataset_stem = dataset_path.stem                       # e.g. "dataset2"
-dataset_dir  = dataset_path.parent                     # e.g. datasets/
+dataset_stem = dataset_path.stem
+output_dir   = get_output_dir(dataset_path)
 
 if args.out:
     out_path = Path(args.out)
 else:
-    out_path = dataset_dir / f"{dataset_stem}.html"    # datasets/dataset2.html
+    out_path = output_dir / f"{dataset_stem}.html"
 
 title     = args.title or f"Survey Report — {dataset_path.name}"
 generated = datetime.now().strftime("%Y-%m-%d %H:%M")
 
 h = lambda s: html.escape(str(s))
 
-# ── Load analysis.json if present (named after dataset) ──────────────────────
+# ── Load analysis.json if present ─────────────────────────────────────────────
+# Search order: explicit --analysis arg → output_dir → dataset dir
 
-analysis_path = dataset_dir / f"{dataset_stem}_analysis.json"
+def _find_analysis() -> Path | None:
+    if args.analysis:
+        p = Path(args.analysis)
+        return p if p.exists() else None
+    for candidate in [
+        output_dir   / f"{dataset_stem}_analysis.json",
+        dataset_path.parent / f"{dataset_stem}_analysis.json",
+    ]:
+        if candidate.exists():
+            return candidate
+    return None
+
+analysis_path = _find_analysis()
 analysis = {}
-if analysis_path.exists():
+if analysis_path:
     try:
         analysis = json.load(analysis_path.open(encoding="utf-8")).get("questions", {})
         print(f"ℹ️  Loaded analysis.json ({len(analysis)} questions enriched)")

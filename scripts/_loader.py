@@ -27,6 +27,22 @@ from pathlib import Path
 
 # ── File discovery ─────────────────────────────────────────────────────────────
 
+# Claude skill environments mount a writable output directory here.
+# All other environments fall back to writing alongside the source dataset.
+CLAUDE_OUTPUT_DIR = Path("/mnt/user-data/outputs")
+
+
+def get_output_dir(dataset_path: Path) -> Path:
+    """Return the directory where output files should be written.
+
+    Prefers /mnt/user-data/outputs when running inside Claude (read-only skill
+    folder), otherwise falls back to the dataset's own directory.
+    """
+    if CLAUDE_OUTPUT_DIR.exists() and CLAUDE_OUTPUT_DIR.is_dir():
+        return CLAUDE_OUTPUT_DIR
+    return dataset_path.parent
+
+
 def list_datasets(cwd=None) -> list:
     """Return all dataset files found in the datasets/ folder, sorted by name."""
     base = Path(cwd or Path(__file__).parent.parent)

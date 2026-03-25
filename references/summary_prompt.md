@@ -5,8 +5,10 @@ The LLM should:
 
 1. Run `python3 scripts/analyze_comments.py --dataset <path>` and read all output
 2. For **each question** in the output, perform the analysis below
-3. Write the result to `<dataset_dir>/<dataset_stem>_analysis.json`
-   - e.g. for `datasets/dataset2.xlsx` → `datasets/dataset2_analysis.json`
+3. Write the result to the correct output path:
+   - **Inside Claude** (when `/mnt/user-data/outputs/` exists): write to `/mnt/user-data/outputs/<dataset_stem>_analysis.json`
+   - **Local environment**: write to `<dataset_dir>/<dataset_stem>_analysis.json`
+   - e.g. for `datasets/dataset2.xlsx` locally → `datasets/dataset2_analysis.json`
 4. Then run `python3 scripts/report.py --dataset <path>` to generate the final report
    - Report will be saved as `<dataset_dir>/<dataset_stem>.html` automatically
 

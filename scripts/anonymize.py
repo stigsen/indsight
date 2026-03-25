@@ -30,7 +30,7 @@ import zipfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from _loader import find_dataset
+from _loader import find_dataset, get_output_dir
 
 # ── PII column name patterns ───────────────────────────────────────────────────
 PII_COL_PATTERNS = re.compile(
@@ -104,8 +104,10 @@ def _find_dataset_sheet(zf: zipfile.ZipFile) -> str:
     raise ValueError("No 'Dataset' sheet found in workbook.")
 
 
-def anonymize(src_path: Path) -> Path:
-    dst_path = src_path.parent / f"{src_path.stem}_anonymized.xlsx"
+def anonymize(src_path: Path, dst_path: Path | None = None) -> Path:
+    if dst_path is None:
+        output_dir = get_output_dir(src_path)
+        dst_path = output_dir / f"{src_path.stem}_anonymized.xlsx"
 
     with zipfile.ZipFile(src_path, "r") as zf:
         sheet_path = _find_dataset_sheet(zf)
@@ -184,6 +186,7 @@ def anonymize(src_path: Path) -> Path:
 parser = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
 parser.add_argument("--dataset", help="Path to dataset file (.xlsx)")
+parser.add_argument("--output",  help="Output path for anonymized file (default: <output_dir>/<stem>_anonymized.xlsx)")
 args = parser.parse_args()
 
 src = find_dataset(cwd=Path(__file__).parent.parent, explicit_path=args.dataset)
@@ -191,7 +194,9 @@ src = find_dataset(cwd=Path(__file__).parent.parent, explicit_path=args.dataset)
 if src.suffix.lower() != ".xlsx":
     sys.exit("❌ Anonymisation currently supports .xlsx files only.")
 
+dst_path = Path(args.output) if args.output else None
+
 print(f"Anonymising: {src}")
-dst = anonymize(src)
+dst = anonymize(src, dst_path)
 print(f"\n✅ Anonymised dataset saved to: {dst}")
 print("   The original file has NOT been modified.")
