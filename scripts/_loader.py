@@ -42,7 +42,7 @@ def list_datasets(cwd=None) -> list:
 
 def find_dataset(cwd=None, explicit_path=None) -> Path:
     if explicit_path:
-        p = Path(explicit_path)
+        p = Path(explicit_path).expanduser().resolve()
         if not p.exists():
             sys.exit(f"❌ File not found: {explicit_path}")
         return p

@@ -17,7 +17,11 @@ Handles any dataset automatically — Likert 1–5, slider 0–100, binary yes/n
 **If no file is specified:**
 1. Run `python3 scripts/list_datasets.py` to discover available files.
 2. If there is only one file → use it automatically and confirm to the user.
-3. If there are multiple files → show the list and ask the user which one to use before proceeding.
+3. If there are multiple files → show the list and ask the user which one to use. Always include the option to provide a path to a file outside the `datasets/` folder.
+
+Examples of valid responses from the user:
+- `"1"` or `"dataset2.xlsx"` → use that file from the list
+- `"/home/user/downloads/survey_q1.xlsx"` or any other absolute/relative path → use that file directly, even if it lives outside `datasets/`
 
 ```bash
 python3 scripts/list_datasets.py

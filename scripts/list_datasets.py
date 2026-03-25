@@ -16,10 +16,12 @@ from _loader import list_datasets
 files = list_datasets(cwd=Path(__file__).parent.parent)
 
 if not files:
-    print("No datasets found. Drop .xlsx or .xml files into the datasets/ folder.")
-    sys.exit(0)
+    print("No datasets found in datasets/.")
+else:
+    print(f"Found {len(files)} dataset(s) in datasets/:\n")
+    for i, f in enumerate(files, 1):
+        size_kb = f.stat().st_size // 1024
+        print(f"  [{i}] {f.name}  ({size_kb} KB)")
 
-print(f"Found {len(files)} dataset(s) in datasets/:\n")
-for i, f in enumerate(files, 1):
-    size_kb = f.stat().st_size // 1024
-    print(f"  [{i}] {f.name}  ({size_kb} KB)")
+print("\n  You can also provide a path to any .xlsx or .xml file outside this folder.")
+print("  Example: /home/user/downloads/my_survey.xlsx")
