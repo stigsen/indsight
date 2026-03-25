@@ -8,20 +8,37 @@ description: Analyse SurveyXact survey exports (.xlsx or .xml) and generate inte
 Analyse survey datasets exported from SurveyXact (`.xml` or `.xlsx`).
 Handles any dataset automatically — Likert 1–5, slider 0–100, binary yes/no, and open-ended text — normalising all numeric scores to a common **0–100 scale** for easy comparison.
 
-## How to run this skill
+## Step 1 — Resolve the dataset file
 
-When a user asks for a report or analysis, **always ask first**:
+**If the user names a file in their request** (e.g. "make a report of dataset2.xlsx" or "analyse my_survey.xlsx"):
+- Use that file directly: `--dataset datasets/<filename>`
+- If the named file is not in `datasets/`, say so and list what is available.
+
+**If no file is specified:**
+1. Run `python3 scripts/list_datasets.py` to discover available files.
+2. If there is only one file → use it automatically and confirm to the user.
+3. If there are multiple files → show the list and ask the user which one to use before proceeding.
+
+```bash
+python3 scripts/list_datasets.py
+```
+
+## Step 2 — Ask about AI summaries
+
+Once the file is confirmed, always ask:
 
 > "Do you want AI summaries of the open-ended responses? This includes a summary, themes, and sentiment scoring (1–5) per answer. It takes a moment but makes the comments section much more useful."
 
 - **Yes** → Run `analyze_comments.py` to read all text answers, perform the full analysis described in [references/summary_prompt.md](references/summary_prompt.md), write `datasets/<name>_analysis.json`, then run `report.py`.
 - **No** → Run `report.py` directly. The report is still fully functional — just without AI-enriched comments.
 
+## Step 3 — Generate the report
+
 ```bash
-# Step 1 (if summaries requested): read all text data
+# Step 3a (if summaries requested): read all text data
 python3 scripts/analyze_comments.py --dataset datasets/myfile.xlsx
 
-# Step 2: generate the HTML report (auto-loads <name>_analysis.json if present)
+# Step 3b: generate the HTML report (auto-loads <name>_analysis.json if present)
 python3 scripts/report.py --dataset datasets/myfile.xlsx --title "My Survey"
 ```
 
@@ -55,6 +72,7 @@ SurveyXact exports an Excel-XML or OOXML file with sheets:
 
 | Script | Purpose |
 |---|---|
+| `scripts/list_datasets.py` | List all available dataset files in datasets/ |
 | `scripts/report.py` | Full interactive HTML report with SVG charts + browser-side filters |
 | `scripts/analyze_comments.py` | Dump text answers for LLM analysis |
 | `scripts/_loader.py` | Shared dataset loader (used by all scripts) |
@@ -67,3 +85,4 @@ SurveyXact exports an Excel-XML or OOXML file with sheets:
 ## Adding More Datasets
 
 Drop `.xml` or `.xlsx` files into `datasets/`. Use `--dataset` to target a specific file.
+

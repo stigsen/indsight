@@ -27,19 +27,29 @@ from pathlib import Path
 
 # ── File discovery ─────────────────────────────────────────────────────────────
 
-def find_dataset(cwd=None, explicit_path=None) -> Path:
-    if explicit_path:
-        return Path(explicit_path)
+def list_datasets(cwd=None) -> list:
+    """Return all dataset files found in the datasets/ folder, sorted by name."""
     base = Path(cwd or Path(__file__).parent.parent)
     datasets_dir = base / "datasets"
     if not datasets_dir.exists():
-        sys.exit("❌ No 'datasets/' folder found. Run from the project root.")
-    for pattern in ("*.xml", "*.xlsx"):
-        files = sorted(f for f in datasets_dir.glob(pattern)
-                       if not f.name.startswith(".") and ":" not in f.name)
-        if files:
-            return files[0]
-    sys.exit("❌ No .xml or .xlsx file found in datasets/")
+        return []
+    files = []
+    for pattern in ("*.xlsx", "*.xml"):
+        files += sorted(f for f in datasets_dir.glob(pattern)
+                        if not f.name.startswith(".") and ":" not in f.name)
+    return files
+
+
+def find_dataset(cwd=None, explicit_path=None) -> Path:
+    if explicit_path:
+        p = Path(explicit_path)
+        if not p.exists():
+            sys.exit(f"❌ File not found: {explicit_path}")
+        return p
+    files = list_datasets(cwd)
+    if not files:
+        sys.exit("❌ No .xml or .xlsx file found in datasets/")
+    return files[0]
 
 
 # ── SpreadsheetML (Excel-XML) parser ──────────────────────────────────────────
