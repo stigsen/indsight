@@ -31,7 +31,9 @@ python3 scripts/list_datasets.py
 
 Once the file is confirmed, always ask:
 
-> "Do you want AI summaries of the open-ended responses? This includes a summary, themes, and sentiment scoring (1–5) per answer. It takes a moment but makes the comments section much more useful."
+> "Do you want AI summaries of the open-ended responses? This includes a summary, themes, and sentiment scoring (1–5) per answer. It takes a moment but makes the comments section much more useful.
+>
+> ⚠️ **Note:** Generating summaries requires sending all open-ended responses to the AI model currently in use. Please make sure you are allowed to share this data with the AI provider before proceeding."
 
 - **Yes** → Run `analyze_comments.py` to read all text answers, perform the full analysis described in [references/summary_prompt.md](references/summary_prompt.md), write `datasets/<name>_analysis.json`, then run `report.py`.
 - **No** → Run `report.py` directly. The report is still fully functional — just without AI-enriched comments.
