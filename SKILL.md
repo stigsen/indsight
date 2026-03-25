@@ -79,6 +79,36 @@ python3 scripts/report.py   --dataset datasets/myfile.xlsx --out /custom/path/re
 python3 scripts/anonymize.py --dataset datasets/myfile.xlsx --output /custom/path/myfile_anonymized.xlsx
 ```
 
+## Step 5 — Query mode (answer questions about the data)
+
+After a dataset is loaded, the user can ask **any free-form question** about the respondents:
+
+> "List respondents over 40"
+> "Find the funniest open-text answer, then show all of that person's responses"
+> "Who scored lowest on question X?"
+> "How many people chose 'Hval' as the coolest animal?"
+
+**How to handle these queries:**
+
+1. Run `dump_respondents.py` to get the full dataset as readable text:
+   ```bash
+   python3 scripts/dump_respondents.py --dataset datasets/myfile.xlsx
+   ```
+2. Read the entire output — it contains every respondent's scores (normalised to 0–100), labels, and open-ended answers, plus a variable legend at the top.
+3. Answer the user's question directly from that data using your own reasoning. No external query engine is needed — you are the query engine.
+
+**For very large datasets** (500+ respondents), use `--max` to cap the dump if context is tight, or ask the user to narrow the question first:
+```bash
+python3 scripts/dump_respondents.py --dataset datasets/myfile.xlsx --max 300
+```
+
+**For machine-readable output** (e.g. if you want to do structured comparisons):
+```bash
+python3 scripts/dump_respondents.py --dataset datasets/myfile.xlsx --format json
+```
+
+> 💡 Tip: For targeted lookups by email or score range you can still use `query.py` directly — but `dump_respondents.py` is preferred for open-ended natural language questions.
+
 ---
 
 ## Dataset Format
@@ -111,7 +141,7 @@ SurveyXact exports an Excel-XML or OOXML file with sheets:
 | `scripts/variables.py` | List all variables with types and mean scores |
 | `scripts/summary.py` | Stats table (mean, median, SD) |
 | `scripts/graph.py` | ASCII distribution bar charts |
-| `scripts/query.py` | Filter and inspect individual respondents |
+| `scripts/dump_respondents.py` | Dump all respondents (scores + text) as a readable table for LLM querying |
 | `scripts/priorities.py` | Rank topics by average score |
 
 ## Adding More Datasets
