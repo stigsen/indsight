@@ -50,14 +50,15 @@ Once the file is confirmed, always ask:
 >
 > ⚠️ **Note:** Generating summaries requires sending all open-ended responses to the AI model currently in use. Please make sure you are allowed to share this data with the AI provider before proceeding."
 
-- **Yes** → Run `analyze_comments.py` to read all text answers, perform the full analysis described in [references/summary_prompt.md](references/summary_prompt.md), write `datasets/<name>_analysis.json`, then run `report.py`.
+- **Yes** → Run `dump_respondents.py --format json` to get the full dataset (scores + text per respondent), perform the full analysis described in [references/summary_prompt.md](references/summary_prompt.md), write `datasets/<name>_analysis.json`, then run `report.py`.
 - **No** → Run `report.py` directly. The report is still fully functional — just without AI-enriched comments.
 
 ## Step 4 — Generate the report
 
 ```bash
-# Step 4a (if summaries requested): read all text data, then write analysis.json to output dir
-python3 scripts/analyze_comments.py --dataset datasets/myfile.xlsx
+# Step 4a (if summaries requested): dump full dataset as JSON (scores + text),
+# then write analysis.json to output dir
+python3 scripts/dump_respondents.py --dataset datasets/myfile.xlsx --format json
 # → LLM writes: /mnt/user-data/outputs/myfile_analysis.json
 
 # Step 4b: generate the HTML report

@@ -3,8 +3,11 @@
 Used internally by the skill when the user requests AI summaries.
 The LLM should:
 
-1. Run `python3 scripts/analyze_comments.py --dataset <path>` and read all output
-2. For **each question** in the output, perform the analysis below
+1. Run `python3 scripts/dump_respondents.py --dataset <path> --format json` and read the full JSON output.
+   This gives you **every respondent's scores and open-ended answers together** — use this context
+   to produce richer, more accurate sentiment and themes (e.g. a neutral-sounding answer from someone
+   who scored everything low should be treated as negative, not neutral).
+2. For **each text variable** in the output, perform the analysis below
 3. Write the result to the correct output path:
    - **Inside Claude** (when `/mnt/user-data/outputs/` exists): write to `/mnt/user-data/outputs/<dataset_stem>_analysis.json`
    - **Local environment**: write to `<dataset_dir>/<dataset_stem>_analysis.json`
