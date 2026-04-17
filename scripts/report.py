@@ -180,96 +180,152 @@ data_json = json.dumps(survey_data, ensure_ascii=False, separators=(",", ":"))
 # ── CSS ───────────────────────────────────────────────────────────────────────
 
 CSS = """
+/* ── Reset & base ─────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #333; background: #f5f6fa; }
-.page { max-width: 980px; margin: 0 auto; padding: 24px; background: #fff; box-shadow: 0 2px 12px rgba(0,0,0,.08); }
-h1 { font-size: 24px; font-weight: 700; color: #1a1a2e; margin-bottom: 4px; }
-h2 { font-size: 17px; font-weight: 600; color: #1a1a2e; margin: 32px 0 12px; padding-bottom: 6px; border-bottom: 2px solid #4361ee; }
+body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 13px; color: #333;
+       height: 100vh; overflow: hidden; display: flex; }
+
+/* ── App shell ────────────────────────────────────────────────────────────── */
+.app-shell { display: flex; width: 100vw; height: 100vh; }
+
+/* ── Sidebar ──────────────────────────────────────────────────────────────── */
+.sidebar {
+  width: 215px; min-width: 215px; flex-shrink: 0;
+  background: #0c3a51; color: #8ab5cb;
+  display: flex; flex-direction: column; overflow-y: auto;
+}
+.sidebar-brand { padding: 16px 20px 14px; border-bottom: 1px solid rgba(255,255,255,.1); }
+.brand-name { display: block; font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -.2px; }
+.brand-sub  { font-size: 11px; color: #6a9ab5; display: block; margin-top: 2px; }
+
+.nav-section { flex: 1; padding: 6px 0; }
+.nav-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 18px 10px 16px; cursor: pointer;
+  color: #8ab5cb; font-size: 13px;
+  border-left: 3px solid transparent;
+  transition: background .15s, color .15s;
+  text-decoration: none;
+}
+.nav-item:hover  { background: rgba(255,255,255,.07); color: #c8e0ee; }
+.nav-item.active { background: rgba(255,255,255,.10); color: #fff; border-left-color: #29a8e0; }
+.nav-icon { font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; opacity: .75; }
+.nav-item.active .nav-icon { opacity: 1; }
+.nav-label { flex: 1; }
+
+/* ── Main area ────────────────────────────────────────────────────────────── */
+.main-area { flex: 1; display: flex; flex-direction: column; overflow: hidden; min-width: 0; }
+
+/* ── Top header ───────────────────────────────────────────────────────────── */
+.top-header {
+  background: #1078bf; color: #fff; height: 52px;
+  padding: 0 24px; display: flex; align-items: center; gap: 16px; flex-shrink: 0;
+}
+.header-title { font-size: 15px; font-weight: 400; }
+
+/* ── Content area ─────────────────────────────────────────────────────────── */
+.content-area { flex: 1; overflow-y: auto; background: #f0f2f5; }
+.content-inner { max-width: 1080px; margin: 0 auto; padding: 28px 28px 56px; }
+
+/* ── Page heading ─────────────────────────────────────────────────────────── */
+.page-heading { margin-bottom: 20px; }
+.page-heading h1 { font-size: 22px; font-weight: 600; color: #1a2a3a; }
+.page-heading .meta { color: #888; font-size: 12px; margin-top: 4px; }
+
+/* ── Panel cards ──────────────────────────────────────────────────────────── */
+.panel { background: #fff; border: 1px solid #dde2e8; border-radius: 4px; margin-bottom: 18px; overflow: hidden; }
+.panel-header {
+  padding: 12px 20px 11px; border-bottom: 1px solid #eaecf0;
+  display: flex; align-items: baseline; gap: 8px;
+}
+.panel-title    { font-size: 15px; font-weight: 600; color: #1a2a3a; flex: 1; }
+.panel-subtitle { font-size: 12px; color: #888; font-weight: 400; }
+.panel-body { padding: 16px 20px; }
+
+/* ── Legacy section / heading overrides ──────────────────────────────────── */
+.section { margin-bottom: 0; }
+h2 { display: none; }
 h3 { font-size: 13px; font-weight: 600; color: #555; margin-bottom: 6px; }
-.meta { color: #888; font-size: 12px; margin-bottom: 16px; }
-.cards { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 8px; }
-.card { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 16px 20px;
-        flex: 1; min-width: 140px; text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.05); }
-.card .big { font-size: 32px; font-weight: 700; line-height: 1.1; }
+
+/* ── Summary cards ────────────────────────────────────────────────────────── */
+.cards { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 18px; }
+.card { background: #fff; border: 1px solid #dde2e8; border-radius: 4px; padding: 16px 20px;
+        flex: 1; min-width: 130px; text-align: center; }
+.card .big { font-size: 30px; font-weight: 700; line-height: 1.1; color: #1a2a3a; }
 .card .lbl { font-size: 11px; color: #888; margin-top: 4px; }
 .badge { display:inline-block; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 600; }
-.section { margin-bottom: 32px; }
+
+/* ── Charts ───────────────────────────────────────────────────────────────── */
 .chart-wrap { overflow-x: auto; }
-.question-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px,1fr)); gap: 16px; }
-.q-card { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; padding: 12px; }
+
+/* ── Question grid ────────────────────────────────────────────────────────── */
+.question-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px,1fr)); gap: 14px; }
+.q-card { background: #f8fafb; border: 1px solid #e0e5ea; border-radius: 4px; padding: 12px; }
 .q-card .q-title { font-size: 11px; color: #555; margin-bottom: 8px; line-height: 1.3; min-height: 28px; }
 .q-card .q-stats { display:flex; gap:8px; font-size:11px; color:#888; margin-top:6px; }
-.q-card .q-mean { font-size:14px; font-weight:700; }
-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-th { background: #f0f2ff; text-align: left; padding: 7px 10px; font-weight: 600; color: #444; border-bottom: 2px solid #dde; }
-td { padding: 6px 10px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
-tr:hover td { background: #f8f9ff; }
-.comment-card { background: #fff; border-left: 3px solid #4361ee; padding: 8px 12px;
-                margin-bottom: 6px; border-radius: 0 6px 6px 0; font-size: 12px; line-height: 1.5; }
+.q-card .q-mean  { font-size:14px; font-weight:700; color: #1a2a3a; }
 
-/* ── Comment sections (grouped by question) ─────────────────────────────── */
-.comment-section {
-  margin-bottom: 28px; border: 1px solid #e8e8f0; border-radius: 10px; overflow: hidden;
+/* ── Tables ───────────────────────────────────────────────────────────────── */
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { background: #f4f6f8; text-align: left; padding: 8px 12px; font-weight: 600; color: #444;
+     border-bottom: 1px solid #dde2e8; }
+td { padding: 7px 12px; border-bottom: 1px solid #f0f2f5; vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: #f8fafb; }
+
+/* ── Comment cards ────────────────────────────────────────────────────────── */
+.comment-card {
+  background: #fff; border: 1px solid #e0e5ea; border-left: 3px solid #1078bf;
+  padding: 8px 12px; margin-bottom: 6px; border-radius: 0 4px 4px 0;
+  font-size: 12px; line-height: 1.5;
 }
+
+/* ── Comment sections ─────────────────────────────────────────────────────── */
+.comment-section { margin-bottom: 14px; border: 1px solid #e0e5ea; border-radius: 4px; overflow: hidden; }
 .comment-section-header {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
-  background: #f0f2ff; padding: 12px 16px; cursor: pointer; user-select: none;
+  background: #f4f6f8; padding: 11px 16px; cursor: pointer; user-select: none;
 }
-.comment-section-header:hover { background: #e6e9fc; }
-.comment-q-title {
-  font-size: 13px; font-weight: 600; color: #1a1a2e; margin: 0; flex: 1;
-}
-.comment-q-count {
-  font-size: 11px; color: #4361ee; font-weight: 600; white-space: nowrap;
-}
-.comment-q-toggle { font-size: 12px; color: #4361ee; margin-left: 8px; }
+.comment-section-header:hover { background: #eaecf0; }
+.comment-q-title  { font-size: 13px; font-weight: 600; color: #1a2a3a; margin: 0; flex: 1; }
+.comment-q-count  { font-size: 11px; color: #1078bf; font-weight: 600; white-space: nowrap; }
+.comment-q-toggle { font-size: 12px; color: #1078bf; margin-left: 8px; }
 .comment-section-body { padding: 12px 16px; }
 
-/* ── Comment search bar ──────────────────────────────────────────────────── */
-.comment-search-bar {
-  display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
-  flex-wrap: wrap;
-}
+/* ── Comment search ───────────────────────────────────────────────────────── */
+.comment-search-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; flex-wrap: wrap; }
 .comment-search-wrap {
   display: flex; align-items: center; gap: 6px;
-  background: #f8f9ff; border: 1px solid #c8cef7; border-radius: 8px;
+  background: #f8fafb; border: 1px solid #c8d4de; border-radius: 4px;
   padding: 6px 12px; flex: 1; min-width: 220px;
 }
-.comment-search-wrap:focus-within {
-  border-color: #4361ee; box-shadow: 0 0 0 2px rgba(67,97,238,.15);
-}
-.search-icon { font-size: 13px; opacity: .6; }
-#comment-search-clear {
-  background: none; border: none; cursor: pointer; color: #999;
-  font-size: 14px; padding: 0 2px; line-height: 1;
-}
+.comment-search-wrap:focus-within { border-color: #1078bf; box-shadow: 0 0 0 2px rgba(16,120,191,.12); }
+.search-icon { font-size: 13px; opacity: .5; }
+#comment-search-clear { background: none; border: none; cursor: pointer; color: #999; font-size: 14px; padding: 0 2px; line-height: 1; }
 #comment-search-clear:hover { color: #333; }
-.comment-search-count {
-  font-size: 11px; color: #888; white-space: nowrap;
-}
+.comment-search-count { font-size: 11px; color: #888; white-space: nowrap; }
 
-/* ── Analysis: summary, theme chips, sentiment filter ───────────────────── */
+/* ── Analysis summary & theme chips ──────────────────────────────────────── */
 .analysis-summary {
-  background: #f8f9ff; border-left: 3px solid #4361ee; padding: 10px 14px;
-  border-radius: 0 8px 8px 0; font-size: 12px; line-height: 1.6;
-  color: #444; margin-bottom: 14px;
+  background: #f4f7fa; border-left: 3px solid #1078bf; padding: 10px 14px;
+  border-radius: 0 4px 4px 0; font-size: 12px; line-height: 1.6; color: #444; margin-bottom: 14px;
 }
-.analysis-summary strong { color: #4361ee; font-size: 11px; display: block; margin-bottom: 4px; }
+.analysis-summary strong { color: #1078bf; font-size: 11px; display: block; margin-bottom: 4px; }
 .theme-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
 .chip {
-  font-size: 11px; padding: 3px 10px; border-radius: 12px; cursor: pointer;
-  border: 1px solid #c8cef7; background: #fff; color: #4361ee;
-  transition: background .15s, color .15s;
+  font-size: 11px; padding: 3px 10px; border-radius: 3px; cursor: pointer;
+  border: 1px solid #c0cfd9; background: #fff; color: #1078bf; transition: background .15s, color .15s;
 }
-.chip:hover   { background: #eef2ff; }
-.chip.active  { background: #4361ee; color: #fff; border-color: #4361ee; }
-.chip.chip-all { background: #f0f2ff; }
+.chip:hover     { background: #e8f2f9; }
+.chip.active    { background: #1078bf; color: #fff; border-color: #1078bf; }
+.chip.chip-all  { background: #f0f5f9; }
+
+/* ── Sentiment buttons ────────────────────────────────────────────────────── */
 .sentiment-bar { display: flex; gap: 4px; margin-bottom: 12px; align-items: center; }
 .sentiment-bar span { font-size: 11px; color: #888; margin-right: 4px; }
 .sent-btn {
-  font-size: 11px; padding: 3px 9px; border-radius: 10px; cursor: pointer;
-  border: 1px solid #ddd; background: #fff; color: #555;
-  transition: background .15s;
+  font-size: 11px; padding: 3px 9px; border-radius: 3px; cursor: pointer;
+  border: 1px solid #ddd; background: #fff; color: #555; transition: background .15s;
 }
 .sent-btn:hover  { background: #f5f5f5; }
 .sent-btn.active { border-color: #555; font-weight: 700; }
@@ -278,124 +334,102 @@ tr:hover td { background: #f8f9ff; }
 .sent-3.active { background: #fffde8; color: #856404; border-color: #856404; }
 .sent-4.active { background: #e8f4e8; color: #2e7d32; border-color: #2e7d32; }
 .sent-5.active { background: #d4edda; color: #155724; border-color: #155724; }
-.comment-card .card-meta {
-  display: flex; gap: 6px; align-items: center; margin-bottom: 5px; flex-wrap: wrap;
-}
-.category-tag {
-  font-size: 10px; background: #eef2ff; color: #4361ee;
-  padding: 1px 7px; border-radius: 8px; font-weight: 600;
-}
-.sent-dot {
-  font-size: 10px; padding: 1px 7px; border-radius: 8px; font-weight: 600;
-}
+.comment-card .card-meta { display: flex; gap: 6px; align-items: center; margin-bottom: 5px; flex-wrap: wrap; }
+.category-tag { font-size: 10px; background: #e8f2f9; color: #1078bf; padding: 1px 7px; border-radius: 3px; font-weight: 600; }
+.sent-dot { font-size: 10px; padding: 1px 7px; border-radius: 3px; font-weight: 600; }
 .sd-1 { background: #fde8e8; color: #c0392b; }
 .sd-2 { background: #fff0e0; color: #c0672b; }
 .sd-3 { background: #fffde8; color: #856404; }
 .sd-4 { background: #e8f4e8; color: #2e7d32; }
 .sd-5 { background: #d4edda; color: #155724; }
 .flag-high { color: #c0392b; font-weight: 600; }
-.flag-low  { color: #2980b9; font-weight: 600; }
-.type-tag  { font-size: 10px; background: #eef2ff; color: #4361ee; padding: 1px 6px; border-radius: 8px; margin-left: 6px; }
-footer { text-align:center; font-size:11px; color:#bbb; margin-top:40px; }
+.flag-low  { color: #1078bf; font-weight: 600; }
+.type-tag  { font-size: 10px; background: #e8f2f9; color: #1078bf; padding: 1px 6px; border-radius: 3px; margin-left: 6px; }
+footer { text-align:center; font-size:11px; color:#bbb; margin-top:32px; padding-top: 20px; border-top: 1px solid #e0e5ea; }
 
-/* ── Filter bar ──────────────────────────────────────────────────────────── */
+/* ── Filter bar ───────────────────────────────────────────────────────────── */
 .filter-bar {
-  background: #f0f2ff;
-  border: 1px solid #c8cef7;
-  border-radius: 10px;
-  padding: 12px 16px;
-  margin-bottom: 24px;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 12px;
+  background: #fff; border: 1px solid #dde2e8; border-radius: 4px;
+  padding: 12px 16px; margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 12px;
 }
-.filter-bar .filter-title {
-  font-size: 12px; font-weight: 600; color: #4361ee; white-space: nowrap;
-}
-.filter-group {
-  display: flex; flex-direction: column; gap: 3px; min-width: 140px;
-}
-.filter-group label {
-  font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: .4px;
-}
+.filter-bar .filter-title { font-size: 12px; font-weight: 600; color: #1078bf; white-space: nowrap; }
+.filter-group { display: flex; flex-direction: column; gap: 3px; min-width: 140px; }
+.filter-group label { font-size: 10px; color: #666; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; }
 .filter-group select {
-  font-size: 12px; padding: 4px 8px; border: 1px solid #c8cef7; border-radius: 6px;
+  font-size: 12px; padding: 5px 8px; border: 1px solid #c8d4de; border-radius: 3px;
   background: #fff; color: #333; cursor: pointer;
   appearance: none; -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%234361ee'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%231078bf'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 8px center; padding-right: 22px;
 }
-.filter-group select:focus { outline: 2px solid #4361ee; outline-offset: 1px; }
+.filter-group select:focus { outline: 2px solid #1078bf; outline-offset: 1px; }
 .filter-actions { display: flex; align-items: flex-end; gap: 8px; margin-top: 2px; }
 .btn-reset {
-  font-size: 12px; padding: 5px 14px; background: #4361ee; color: #fff;
-  border: none; border-radius: 6px; cursor: pointer; font-weight: 600; white-space: nowrap;
+  font-size: 12px; padding: 6px 16px; background: #1078bf; color: #fff;
+  border: none; border-radius: 3px; cursor: pointer; font-weight: 600; white-space: nowrap;
 }
-.btn-reset:hover { background: #3451d1; }
+.btn-reset:hover { background: #0a68a8; }
 .filter-status {
-  font-size: 11px; color: #555; background: #fff; padding: 4px 10px;
-  border-radius: 12px; border: 1px solid #c8cef7; white-space: nowrap;
+  font-size: 11px; color: #555; background: #f4f6f8; padding: 5px 10px;
+  border-radius: 3px; border: 1px solid #dde2e8; white-space: nowrap;
 }
 .filter-active-count {
-  display: inline-block; background: #4361ee; color: #fff; border-radius: 10px;
+  display: inline-block; background: #1078bf; color: #fff; border-radius: 10px;
   font-size: 10px; font-weight: 700; padding: 1px 6px; margin-left: 4px; vertical-align: middle;
 }
 .no-data { color: #888; font-style: italic; padding: 16px 0; }
 
-/* ── Outlier cards ───────────────────────────────────────────────────────── */
-.outlier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px,1fr)); gap: 14px; }
-.outlier-card {
-  background: #fff; border: 1px solid #e0e0e0; border-radius: 10px;
-  overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.05);
-}
+/* ── Outlier cards ────────────────────────────────────────────────────────── */
+.outlier-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(400px,1fr)); gap: 14px; }
+.outlier-card { background: #fff; border: 1px solid #dde2e8; border-radius: 4px; overflow: hidden; }
 .outlier-header {
   display: flex; justify-content: space-between; align-items: center;
-  padding: 10px 14px; background: #f8f9ff; border-bottom: 1px solid #e8e8f0;
+  padding: 10px 14px; background: #f4f6f8; border-bottom: 1px solid #dde2e8;
 }
 .outlier-id { font-size: 12px; font-weight: 600; color: #333; word-break: break-all; }
 .outlier-count {
-  font-size: 11px; font-weight: 700; background: #4361ee; color: #fff;
+  font-size: 11px; font-weight: 700; background: #1078bf; color: #fff;
   padding: 2px 9px; border-radius: 10px; white-space: nowrap; margin-left: 8px; flex-shrink: 0;
 }
 .outlier-flag {
   display: grid; grid-template-columns: 26px 1fr auto; align-items: center;
-  gap: 8px; padding: 8px 14px; border-bottom: 1px solid #f4f4f4; font-size: 12px;
+  gap: 8px; padding: 8px 14px; border-bottom: 1px solid #f0f2f5; font-size: 12px;
 }
 .outlier-flag:last-child { border-bottom: none; }
 .dir-badge {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 22px; height: 22px; border-radius: 50%; font-size: 13px;
-  font-weight: 700; flex-shrink: 0;
+  width: 22px; height: 22px; border-radius: 50%; font-size: 13px; font-weight: 700; flex-shrink: 0;
 }
 .dir-high { background: #fde8e8; color: #c0392b; }
-.dir-low  { background: #e8f0fd; color: #2361b8; }
+.dir-low  { background: #e0f0fa; color: #1078bf; }
 .flag-label { color: #333; line-height: 1.3; }
 .flag-label .var-code { font-size: 10px; color: #aaa; margin-left: 4px; font-family: monospace; }
 .flag-scores { text-align: right; white-space: nowrap; }
 .flag-their { font-weight: 700; font-size: 13px; }
 .flag-avg   { font-size: 10px; color: #888; margin-top: 1px; }
 .flag-bar-wrap { grid-column: 1 / -1; padding: 0 0 4px 34px; }
-.flag-bar-track {
-  height: 6px; background: #eee; border-radius: 3px; position: relative; overflow: visible;
-}
-.flag-bar-fill { height: 100%; border-radius: 3px; }
+.flag-bar-track { height: 6px; background: #eee; border-radius: 3px; position: relative; overflow: visible; }
+.flag-bar-fill  { height: 100%; border-radius: 3px; }
 .flag-bar-avg-marker {
   position: absolute; top: -3px; width: 2px; height: 12px;
   background: #555; border-radius: 1px; transform: translateX(-50%);
 }
 .z-pill {
   display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px;
-  background: #f0f0f0; color: #555; cursor: help; margin-left: 4px;
-  border-bottom: 1px dashed #bbb;
+  background: #f0f0f0; color: #555; cursor: help; margin-left: 4px; border-bottom: 1px dashed #bbb;
 }
 .outlier-more { padding: 8px 14px; font-size: 11px; color: #888; font-style: italic; }
 
+/* ── Print ────────────────────────────────────────────────────────────────── */
 @media print {
-  .filter-bar { display: none !important; }
-  body { background: #fff; }
-  .page { box-shadow: none; padding: 0; }
-  h2 { page-break-after: avoid; }
+  .sidebar, .top-header, .filter-bar { display: none !important; }
+  body { height: auto; overflow: visible; display: block; }
+  .app-shell { display: block; height: auto; }
+  .main-area { display: block; height: auto; }
+  .content-area { overflow: visible; height: auto; }
+  .content-inner { padding: 0; max-width: none; }
+  .panel { break-inside: avoid; }
   .q-card, .comment-card { break-inside: avoid; }
 }
 """
@@ -1113,51 +1147,167 @@ html_content = f"""<!DOCTYPE html>
   <style>{CSS}</style>
 </head>
 <body>
-<div class="page">
-  <h1>{h(title)}</h1>
-  <p class="meta">Generated {generated} &nbsp;·&nbsp; Source: {h(path_str)}</p>
+<div class="app-shell">
 
-  <!-- Filter bar -->
-  <div class="filter-bar">
-    <span class="filter-title" id="filter-btn-label">🔍 Filters</span>
-    <div id="filter-bar-controls" style="display:contents"></div>
-    <div class="filter-actions">
-      <button class="btn-reset" onclick="resetFilters()">Reset</button>
-      <span class="filter-status" id="filter-status">Loading…</span>
+  <!-- ── Sidebar ─────────────────────────────────────────────────────────── -->
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <span class="brand-name">Indsight</span>
+      <span class="brand-sub">By Ramboll</span>
+    </div>
+    <div class="nav-section">
+      <a class="nav-item" href="#sec-cards" onclick="navClick(this)">
+        <span class="nav-icon">&#9632;</span><span class="nav-label">Overview</span>
+      </a>
+      <a class="nav-item" href="#panel-ranking" onclick="navClick(this)">
+        <span class="nav-icon">&#9776;</span><span class="nav-label">Score Ranking</span>
+      </a>
+      <a class="nav-item" href="#panel-grid" onclick="navClick(this)">
+        <span class="nav-icon">&#9635;</span><span class="nav-label">Question Breakdown</span>
+      </a>
+      <a class="nav-item" href="#panel-topbottom" onclick="navClick(this)">
+        <span class="nav-icon">&#8645;</span><span class="nav-label">Top &amp; Bottom 5</span>
+      </a>
+      <a class="nav-item" href="#panel-heatmap" onclick="navClick(this)">
+        <span class="nav-icon">&#9638;</span><span class="nav-label">Score Distribution</span>
+      </a>
+      <a class="nav-item" href="#panel-sentiment" onclick="navClick(this)">
+        <span class="nav-icon">&#9685;</span><span class="nav-label">Sentiment</span>
+      </a>
+      <a class="nav-item" href="#panel-comments" onclick="navClick(this)">
+        <span class="nav-icon">&#9998;</span><span class="nav-label">Open-ended Responses</span>
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── Main area ───────────────────────────────────────────────────────── -->
+  <div class="main-area">
+
+    <header class="top-header">
+      <span class="header-title">{h(title)}</span>
+    </header>
+
+    <div class="content-area" id="content-area">
+      <div class="content-inner">
+
+        <div class="page-heading">
+          <h1>Analysis</h1>
+          <p class="meta">Generated {generated} &nbsp;·&nbsp; Source: {h(path_str)}</p>
+        </div>
+
+        <!-- Filter bar -->
+        <div class="filter-bar">
+          <span class="filter-title" id="filter-btn-label">Filters</span>
+          <div id="filter-bar-controls" style="display:contents"></div>
+          <div class="filter-actions">
+            <button class="btn-reset" onclick="resetFilters()">Reset</button>
+            <span class="filter-status" id="filter-status">Loading…</span>
+          </div>
+        </div>
+
+        <!-- Summary cards (JS-rendered, no panel wrapper) -->
+        <div id="sec-cards" class="section"></div>
+
+        <!-- Score ranking -->
+        <div class="panel" id="panel-ranking">
+          <div class="panel-header">
+            <span class="panel-title">Score Ranking</span>
+            <span class="panel-subtitle">normalised 0–100, ±1 SD shown</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-ranking" class="section">{no_score_msg}</div>
+          </div>
+        </div>
+
+        <!-- Question Breakdown -->
+        <div class="panel" id="panel-grid">
+          <div class="panel-header">
+            <span class="panel-title">Question Breakdown</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-grid" class="section">{no_score_msg}</div>
+          </div>
+        </div>
+
+        <!-- Top / Bottom 5 -->
+        <div class="panel" id="panel-topbottom">
+          <div class="panel-header">
+            <span class="panel-title">Top 5 &amp; Bottom 5</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-topbottom" class="section">{no_score_msg}</div>
+          </div>
+        </div>
+
+        <!-- Score Distribution Heatmap -->
+        <div class="panel" id="panel-heatmap">
+          <div class="panel-header">
+            <span class="panel-title">Score Distribution Heatmap</span>
+            <span class="panel-subtitle">% of respondents per bucket</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-heatmap" class="section">{no_score_msg}</div>
+          </div>
+        </div>
+
+        <!-- Sentiment Overview -->
+        <div class="panel" id="panel-sentiment">
+          <div class="panel-header">
+            <span class="panel-title">Sentiment Overview</span>
+            <span class="panel-subtitle">per open-ended question</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-sentiment-overview" class="section"></div>
+          </div>
+        </div>
+
+        <!-- Open-ended Responses -->
+        <div class="panel" id="panel-comments">
+          <div class="panel-header">
+            <span class="panel-title" id="sec-comments-heading">Open-ended Responses</span>
+          </div>
+          <div class="panel-body">
+            <div id="sec-comments" class="section"></div>
+          </div>
+        </div>
+
+        <footer>Survey Indsight · Generated by report.py · {generated}</footer>
+      </div>
     </div>
   </div>
 
-  <!-- Summary cards (JS-rendered) -->
-  <div id="sec-cards" class="section"></div>
-
-  <!-- Score ranking -->
-  <h2>Score Ranking <span style="font-weight:400;font-size:13px;color:#888">(normalised 0–100, ±1 SD shown)</span></h2>
-  <div id="sec-ranking" class="section">{no_score_msg}</div>
-
-  <!-- Per-question grid -->
-  <h2>Question Breakdown</h2>
-  <div id="sec-grid" class="section">{no_score_msg}</div>
-
-  <!-- Top / Bottom 5 -->
-  <h2>Top 5 &amp; Bottom 5</h2>
-  <div id="sec-topbottom" class="section">{no_score_msg}</div>
-
-  <!-- Score Distribution Heatmap -->
-  <h2>Score Distribution Heatmap <span style="font-weight:400;font-size:13px;color:#888">(% of respondents per bucket)</span></h2>
-  <div id="sec-heatmap" class="section">{no_score_msg}</div>
-
-  <!-- Sentiment Overview -->
-  <h2>Sentiment Overview <span style="font-weight:400;font-size:13px;color:#888">(per open-ended question)</span></h2>
-  <div id="sec-sentiment-overview" class="section"></div>
-
-  <!-- Comments -->
-  <h2 id="sec-comments-heading">Open-ended Responses</h2>
-  <div id="sec-comments" class="section"></div>
-
-  <footer>Survey Indsight · Generated by report.py · {generated}</footer>
 </div>
 
 <script>window.SURVEY_DATA = {data_json};</script>
+<script>
+// ── Sidebar nav helpers ───────────────────────────────────────────────────────
+function navClick(el) {{
+  event.preventDefault();
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  el.classList.add('active');
+  var target = document.querySelector(el.getAttribute('href'));
+  if (target) {{
+    var ca = document.getElementById('content-area');
+    ca.scrollTo({{ top: target.offsetTop - 20, behavior: 'smooth' }});
+  }}
+}}
+(function() {{
+  var anchors = ['sec-cards','panel-ranking','panel-grid','panel-topbottom','panel-heatmap','panel-sentiment','panel-comments'];
+  var navLinks = Array.from(document.querySelectorAll('.nav-item'));
+  var ca = document.getElementById('content-area');
+  if (!ca || !navLinks.length) return;
+  navLinks[0].classList.add('active');
+  ca.addEventListener('scroll', function() {{
+    var scrollTop = ca.scrollTop + 80;
+    var active = 0;
+    anchors.forEach(function(id, i) {{
+      var el = document.getElementById(id);
+      if (el && el.offsetTop <= scrollTop) active = i;
+    }});
+    navLinks.forEach(function(n, i) {{ n.classList.toggle('active', i === active); }});
+  }});
+}})();
+</script>
 <script>{JS}</script>
 </body>
 </html>"""
